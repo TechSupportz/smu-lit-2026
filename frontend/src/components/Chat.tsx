@@ -1,0 +1,36 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useChat } from '@tanstack/ai-react'
+import { ArrowRight, ArrowUp, Paperclip, MessageCircle, FileText, Square, Check, LoaderCircle } from 'lucide-react'
+import { createDemoConnection } from '@/lib/chat-transport'
+import { useCase } from '@/lib/store'
+import { saveBlob } from '@/lib/storage'
+import type { ChatStage } from '@/lib/types'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Textarea } from './ui/textarea'
+import { FileCard } from './FileCard'
+export function Chat({stage,correctionKey,onError,onGenerate}:{stage:ChatStage;correctionKey:number;onError:(s:string)=>void;onGenerate:(kind:'filing'|'memo')=>Promise<boolean>}) {
+ const {details,setDetails,files,addFile,go}=useCase();const [draft,setDraft]=useState('');const [busy,setBusy]=useState(false);const [uploading,setUploading]=useState(false);const [showForm,setShowForm]=useState(!details.summary)
+ const connection=useMemo(()=>createDemoConnection(stage),[stage])
+ const initial=useRef(useCase.getState().conversations[stage])
+ const {messages,sendMessage,isLoading,stop,error}=useChat({connection,initialMessages:initial.current})
+ useEffect(()=>{useCase.getState().setMessages(stage,messages)},[stage,messages])
+ const inputRef=useRef<HTMLTextAreaElement>(null);const uploadRef=useRef<HTMLInputElement>(null);const endRef=useRef<HTMLDivElement>(null)
+ useEffect(()=>{if(correctionKey){setDraft('I’d like to correct my case details: ');inputRef.current?.focus()}},[correctionKey])
+ useEffect(()=>{endRef.current?.scrollIntoView({block:'nearest'})},[messages])
+ const isPrep=stage==='preparation'
+ async function upload(fileList:FileList|null){if(!fileList)return;setUploading(true);try{for(const file of Array.from(fileList)){if(!['application/pdf','image/jpeg','image/png'].includes(file.type)||file.size>5*1024*1024){onError(`${file.name}: choose a PDF, JPG or PNG no larger than 5 MB.`);continue}const id=crypto.randomUUID();await saveBlob(id,file);addFile({id,name:file.name,size:file.size,status:'ready',kind:'evidence'})}}catch{onError('This browser could not save the attachment. Try again or free up storage.')}finally{setUploading(false);if(uploadRef.current)uploadRef.current.value=''}}
+ async function finish(){if(busy||isLoading||uploading)return;setBusy(true);const success=await onGenerate(isPrep?'memo':'filing');setBusy(false);if(success)go(isPrep?'complete':'checkpoint')}
+ return <div className="stage-content chat-content"><div className="stage-eyebrow">{isPrep?<FileText size={16}/>:<MessageCircle size={16}/>} {isPrep?'STEP 3 · PREPARE YOUR CASE':'STEP 1 · PREPARE YOUR CLAIM'}</div><h1>{isPrep?<>Your story.<br/>Ready for the next chapter.</>:<>Let’s put your<br/>story together.</>}</h1><p className="stage-description">{isPrep?'Build on the details you’ve already shared. Your documents and conversation are right here.':'We’ll gather the details, one piece at a time. No legal language needed.'}</p>
+ <div className="conversation" aria-label="Conversation"><div className="assistant-intro"><span className="assistant-avatar"><MessageCircle size={18}/></span><div><strong>ClaimGuide</strong><p>{isPrep?'Welcome back. Is there anything new since you filed your claim? Tell me about any updates, documents, or points you want to cover.':'Start with who you’re claiming against and what happened. You can add receipts, messages, or other supporting documents along the way.'}</p></div></div>
+ {!isPrep&&showForm&&<form className="structured-card" onSubmit={e=>{e.preventDefault();setShowForm(false)}}><div className="card-heading"><h2>The main details</h2><span>Start here</span></div><div className="eligibility-fields"><label>Who are you claiming against?<Input required placeholder="Person or business name" value={details.respondent} onChange={e=>setDetails({respondent:e.target.value})}/></label><label>What happened?<Textarea required rows={3} placeholder="A short description, in your own words…" value={details.summary} onChange={e=>setDetails({summary:e.target.value})}/></label><label>What outcome are you hoping for?<Input required placeholder="e.g. Return of my $2,400 deposit" value={details.outcome} onChange={e=>setDetails({outcome:e.target.value})}/></label><Button type="submit">Save these details<Check size={16}/></Button></div></form>}
+ {!isPrep&&!showForm&&<div className="summary-confirmation"><Check size={18}/><div><strong>Your starting details are saved.</strong><p>Add context or corrections in the conversation below.</p></div></div>}
+ {messages.map(message=><div className={`message ${message.role==='user'?'user-message':'assistant-message'}`} key={message.id}>{message.role!=='user'&&<span className="assistant-avatar"><MessageCircle size={16}/></span>}<div>{message.parts.map((part,index)=>part.type==='text'?<p key={index}>{part.content}</p>:null)}</div></div>)}
+ {isLoading&&<span className="stream-indicator" role="status"><i/><i/><i/>ClaimGuide is responding</span>}
+ {error&&<div className="inline-error" role="alert">The response was interrupted. Your message is saved; please send it again.</div>}
+ <div ref={endRef}/></div>
+ <div className="attachments-area">{files.filter(f=>f.kind==='evidence').map(f=><FileCard key={f.id} file={f} onError={onError}/>)}</div>
+ <div className="composer-wrap"><form className="composer" onSubmit={e=>{e.preventDefault();if(draft.trim()&&!isLoading){void sendMessage(draft.trim());setDraft('')}}}><Textarea ref={inputRef} aria-label="Message ClaimGuide" placeholder={isPrep?'Tell us what has changed, or ask a question…':'Tell us a little more, or ask a question…'} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();if(draft.trim()&&!isLoading){void sendMessage(draft.trim());setDraft('')}}}}/><div className="composer-actions"><Button type="button" variant="ghost" size="sm" disabled={uploading} onClick={()=>uploadRef.current?.click()}>{uploading?<LoaderCircle size={16} className="spin"/>:<Paperclip size={16}/>}Attach a file</Button><span>PDF, JPG, PNG · up to 5 MB</span>{isLoading?<Button type="button" size="icon" aria-label="Stop response" onClick={stop}><Square size={14}/></Button>:<Button type="submit" size="icon" aria-label="Send message" disabled={!draft.trim()}><ArrowUp size={18}/></Button>}</div><input className="sr-only" ref={uploadRef} tabIndex={-1} type="file" multiple accept="application/pdf,image/jpeg,image/png" onChange={e=>void upload(e.target.files)}/></form><p className="composer-note">Preview responses are scripted. A connected assistant will interpret your messages.</p></div>
+ <div className="stage-action"><div><strong>{isPrep?'Ready to see your document?':'Happy with your starting details?'}</strong><p>{isPrep?'Preview the final PDF and your next steps.':'Review your filing checklist and what to take with you.'}</p></div><Button disabled={busy||isLoading||uploading||(!isPrep&&(!details.summary.trim()||!details.respondent.trim()||!details.outcome.trim()||showForm))} onClick={()=>void finish()}>{busy?<><LoaderCircle size={16} className="spin"/>Preparing…</>:<>{isPrep?'Prepare sample PDF':'View filing checklist'}<ArrowRight size={16}/></>}</Button></div>
+ </div>
+}
