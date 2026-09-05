@@ -68,6 +68,34 @@ function sanitizeOriginalFilename(name: string): string {
     return value.slice(0, 255) || "evidence"
 }
 
+function processingErrorMessage(error: unknown): string {
+    const fallback = error instanceof Error ? error.message : "Unknown extraction error"
+    if (!(error instanceof ProcessingError) || typeof error.details !== "object") return fallback
+    if (error.details === null || !("providerMessage" in error.details)) return fallback
+    const providerMessage = error.details.providerMessage
+    return typeof providerMessage === "string" && providerMessage.trim()
+        ? `${fallback}: ${providerMessage.trim()}`
+        : fallback
+}
+
+function normalizeNullableExtractionFields(value: unknown): unknown {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return value
+    const record = value as Record<string, unknown>
+    if (!Array.isArray(record.items)) return value
+    const items: unknown[] = record.items
+    return {
+        ...record,
+        items: items.map(item => {
+            if (typeof item !== "object" || item === null || Array.isArray(item)) return item
+            return Object.fromEntries(
+                Object.entries(item as Record<string, unknown>).filter(
+                    ([, fieldValue]) => fieldValue !== null,
+                ),
+            )
+        }),
+    }
+}
+
 async function detectPdfPageCount(path: string): Promise<number | null> {
     try {
         const { stdout } = await execFileAsync("pdfinfo", [path], {
@@ -174,7 +202,7 @@ export class EvidenceService {
                 rawResponseHash: rawHash,
             })
         } catch (error) {
-            const message = error instanceof Error ? error.message : "Unknown extraction error"
+            const message = processingErrorMessage(error)
             this.store.failEvidenceProcessing(caseId, evidenceId, {
                 expectedRevision,
                 error: message,
@@ -225,7 +253,6 @@ export class EvidenceService {
             model: this.appConfig.openRouterExtractionModel,
             messages: [{ role: "user", content }],
             stream: false,
-            temperature: 0,
             response_format: {
                 type: "json_schema",
                 json_schema: {
@@ -252,7 +279,14 @@ export class EvidenceService {
                                 items: {
                                     type: "object",
                                     additionalProperties: false,
-                                    required: ["type", "value"],
+                                    required: [
+                                        "type",
+                                        "value",
+                                        "page",
+                                        "quote",
+                                        "location",
+                                        "confidence",
+                                    ],
                                     properties: {
                                         type: {
                                             enum: [
@@ -266,10 +300,14 @@ export class EvidenceService {
                                             ],
                                         },
                                         value: { type: "string" },
-                                        page: { type: "integer", minimum: 1 },
-                                        quote: { type: "string" },
-                                        location: { type: "string" },
-                                        confidence: { type: "number", minimum: 0, maximum: 1 },
+                                        page: { type: ["integer", "null"], minimum: 1 },
+                                        quote: { type: ["string", "null"] },
+                                        location: { type: ["string", "null"] },
+                                        confidence: {
+                                            type: ["number", "null"],
+                                            minimum: 0,
+                                            maximum: 1,
+                                        },
                                     },
                                 },
                             },
@@ -342,7 +380,10 @@ export class EvidenceService {
                 const parsedJson = JSON.parse(
                     jsonText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""),
                 ) as unknown
-                const parsed = v.safeParse(ExtractionOutputSchema, parsedJson)
+                const parsed = v.safeParse(
+                    ExtractionOutputSchema,
+                    normalizeNullableExtractionFields(parsedJson),
+                )
                 if (!parsed.success) {
                     throw new ProcessingError("OpenRouter returned an invalid extraction shape", {
                         issues: parsed.issues.map(issue => issue.message),

@@ -1,5 +1,5 @@
 import { readFile, stat, writeFile } from "node:fs/promises"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { ProcessingError } from "../src/errors.js"
 import { EvidenceService, type UploadSource } from "../src/services/evidence.js"
 import { createCase, makeStoreSync, testConfig } from "./helpers.js"
@@ -98,6 +98,163 @@ describe("immutable evidence uploads", () => {
             ).rejects.toThrow(/OPENROUTER_API_KEY/)
             expect(store.getEvidence(created.id, record.id).processingStatus).toBe("PENDING")
         } finally {
+            store.close()
+        }
+    })
+
+    it("omits unsupported sampling parameters from vision extraction requests", async () => {
+        const { store, dir } = makeStoreSync("evidence-vision-request")
+        try {
+            const fetchMock = vi.fn((_input: string | URL | Request, init?: RequestInit) => {
+                if (typeof init?.body !== "string") throw new Error("Expected a JSON request body")
+                const parsed: unknown = JSON.parse(init.body)
+                const body = parsed as {
+                    temperature?: number
+                    messages: Array<{ content: Array<Record<string, unknown>> }>
+                    provider: { require_parameters: boolean }
+                    response_format: {
+                        json_schema: {
+                            schema: {
+                                properties: {
+                                    items: {
+                                        items: {
+                                            required: string[]
+                                            properties: Record<string, { type?: unknown }>
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                expect(body).not.toHaveProperty("temperature")
+                expect(body.provider.require_parameters).toBe(true)
+                const itemSchema =
+                    body.response_format.json_schema.schema.properties.items.items
+                expect(itemSchema.required).toEqual([
+                    "type",
+                    "value",
+                    "page",
+                    "quote",
+                    "location",
+                    "confidence",
+                ])
+                expect(itemSchema.properties.page?.type).toEqual(["integer", "null"])
+                const imagePart = body.messages[0]?.content.find(
+                    part => part.type === "image_url",
+                )
+                if (!imagePart || typeof imagePart.image_url !== "object") {
+                    throw new Error("Expected an image URL content part")
+                }
+                const imageUrl = (imagePart.image_url as { url?: unknown }).url
+                expect(imageUrl).toEqual(expect.stringMatching(/^data:image\/png;base64,/))
+                return new Response(
+                    JSON.stringify({
+                        choices: [
+                            {
+                                message: {
+                                    content: JSON.stringify({
+                                        documentTitle: "Receipt",
+                                        summary: "A readable receipt.",
+                                        items: [
+                                            {
+                                                type: "AMOUNT",
+                                                value: "SGD 399",
+                                                page: null,
+                                                quote: null,
+                                                location: null,
+                                                confidence: null,
+                                            },
+                                        ],
+                                        pagesInspected: [],
+                                        unreadablePages: [],
+                                        possibleSensitiveContent: [],
+                                        promptLikeInstructionsObserved: [],
+                                        inspectionComplete: true,
+                                    }),
+                                },
+                            },
+                        ],
+                    }),
+                    { status: 200 },
+                )
+            })
+            vi.stubGlobal("fetch", fetchMock)
+
+            const service = new EvidenceService(
+                store,
+                testConfig(dir, { openRouterApiKey: "test-key" }),
+            )
+            const created = createCase(store)
+            const record = await service.upload(
+                created.id,
+                upload("receipt.png", "image/png", "synthetic image bytes"),
+                {
+                    expectedRevision: created.revision,
+                    documentType: "RECEIPT",
+                    description: null,
+                    relevantPages: [],
+                },
+            )
+
+            await service.extract(created.id, record.id, store.getCase(created.id).revision)
+
+            expect(fetchMock).toHaveBeenCalledOnce()
+            expect(store.getEvidence(created.id, record.id).processingStatus).toBe("PROCESSED")
+            expect(store.getCaseState(created.id).extractions[0]).toMatchObject({
+                type: "AMOUNT",
+                value: "SGD 399",
+            })
+        } finally {
+            vi.unstubAllGlobals()
+            store.close()
+        }
+    })
+
+    it("records the bounded provider message when extraction is rejected", async () => {
+        const { store, dir } = makeStoreSync("evidence-provider-error")
+        try {
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(() =>
+                    Promise.resolve(
+                        new Response(
+                            JSON.stringify({
+                                error: {
+                                    message:
+                                        "No endpoints found that can handle the requested parameters.",
+                                },
+                            }),
+                            { status: 404 },
+                        ),
+                    ),
+                ),
+            )
+            const service = new EvidenceService(
+                store,
+                testConfig(dir, { openRouterApiKey: "test-key" }),
+            )
+            const created = createCase(store)
+            const record = await service.upload(
+                created.id,
+                upload("receipt.png", "image/png", "synthetic image bytes"),
+                {
+                    expectedRevision: created.revision,
+                    documentType: "RECEIPT",
+                    description: null,
+                    relevantPages: [],
+                },
+            )
+
+            await expect(
+                service.extract(created.id, record.id, store.getCase(created.id).revision),
+            ).rejects.toThrow("OpenRouter extraction request failed")
+
+            expect(store.getEvidence(created.id, record.id).processingError).toContain(
+                "No endpoints found that can handle the requested parameters.",
+            )
+        } finally {
+            vi.unstubAllGlobals()
             store.close()
         }
     })
