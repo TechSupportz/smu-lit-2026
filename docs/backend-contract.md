@@ -1,41 +1,32 @@
-# Backend contract (proposed)
+# Frontend/backend contract
 
-This is the proposed contract between the frontend chat transport and a future
-backend. The demo transport is local and deterministic; it does not implement
-these backend responsibilities.
+This document records the implemented integration. The backend remains authoritative for structured case state, eligibility, evidence metadata, snapshots, and generated pre-filing PDFs.
 
-## Transport
+## Configuration
 
-The frontend calls the configured endpoint with TanStack AI's
-`fetchServerSentEvents` adapter. The backend accepts the AG-UI `RunAgentInput`
-payload (including the conversation messages, thread ID, and run ID) and
-returns an AG-UI SSE stream. The stream should include the normal run and text
-message lifecycle events, plus the custom events below as the workflow
-progresses. The backend owns validation, persistence, and all authoritative
-workflow decisions.
+The frontend uses `VITE_API_BASE_URL`, defaulting to `/api`. Its Vite development server proxies `/api` to `http://127.0.0.1:3000` and removes the prefix.
 
-## Proposed custom events
+## Case lifecycle
 
-The event `name` values and payloads below are proposed and may be versioned
-before implementation:
+1. The eligibility form creates a case with an idempotency key and stores the returned case ID in browser state.
+2. Eligibility answers are mapped to a revision-checked `PATCH /cases/:caseId`. The UI renders the returned `eligibilityChecks`; it does not infer eligibility from chat text.
+3. The structured filing form updates the case summary, respondent, and requested remedy with the backend's current revision.
+4. Attachments are uploaded to `POST /cases/:caseId/evidence` before a local downloadable copy is stored.
+5. The filing-summary action completes the explicit review, creates an immutable snapshot, compiles its PDF, downloads the actual backend response, and saves a browser copy.
+6. “Clear my case” resolves the current revision, deletes the backend case, and then clears the browser copies and UI state.
 
-| Event name | Payload | Backend responsibility |
-| --- | --- | --- |
-| `case.eligibility` | `{ status: "eligible" | "ineligible" | "needs_review"; reasons: string[] }` | Perform and explain the authoritative legal eligibility assessment. |
-| `case.checklist` | `{ items: Array<{ id: string; label: string; status: "missing" | "complete" | "needs_review"; detail?: string }> }` | Return the current required-document checklist and its state. |
-| `case.summary` | `{ title: string; fields: Record<string, unknown>; updatedAt: string }` | Return the canonical structured case summary used by the UI. |
-| `file.progress` | `{ fileId: string; label: string; status: "queued" | "processing" | "ready" | "error"; progress?: number; error?: string }` | Report actual file preparation or filing progress. |
-| `file.ready` | `{ fileId: string; label: string; url?: string; blob?: string; contentType: "application/pdf" }` | Return a usable PDF URL or blob for a completed file. The backend must generate the PDF and own its availability. |
+All JSON errors use `{ "error": { "code", "message", "details" } }`. The frontend surfaces the backend's safe message and refreshes the case before each multi-step mutation to avoid relying on a stale browser revision.
 
-Eligibility results, checklist state, case summary, and file progress must come
-from the backend. The frontend must not infer legal eligibility from chat text
-or claim that a filing occurred because a stream completed.
+## Conversation transport
 
-## Completion and errors
+The frontend uses `@flue/react` and `@flue/sdk` against:
 
-Successful runs end with the standard AG-UI `RUN_FINISHED` event. Failed runs
-end with `RUN_ERROR` containing a user-safe message and a stable error code
-when available. A cancelled request should honor the request abort signal and
-stop work promptly. A PDF action is complete only after `file.ready` supplies
-an actual PDF URL or blob; a client-side placeholder or status message is not
-evidence of generation or filing.
+```text
+/agents/sct-prefiling/:caseId
+```
+
+Flue reconstructs the durable transcript, follows its updates stream, reconciles optimistic messages, and exposes terminal failures. The old proposed AG-UI adapter is not used because it does not match the implemented Flue route.
+
+## Scope boundary
+
+The current backend is deliberately limited to pre-filing preparation. It does not file, pay, serve documents, prepare hearing arguments, or generate the frontend's proposed post-filing legal memo. The frontend keeps that later stage visibly local until a separately scoped backend exists.

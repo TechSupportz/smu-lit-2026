@@ -1,12 +1,10 @@
-import type { UIMessage } from '@tanstack/ai-react'
 export type Stage = 'landing' | 'eligibility' | 'filing' | 'checkpoint' | 'preparation' | 'complete'
 export type CheckStatus = 'pending' | 'checking' | 'passed' | 'blocked'
 export type EligibilityAnswers = { amount: string; eventDate: string; respondentInSingapore: string; category: string; consent: boolean }
 export type EligibilityCheck = { id: string; label: string; status: CheckStatus; detail?: string }
 export type CaseDetails = { respondent: string; summary: string; outcome: string }
-export type CaseFile = { id: string; name: string; size: number; kind: 'evidence' | 'generated'; status: 'generating' | 'ready' | 'failed'; error?: string }
+export type CaseFile = { id: string; name: string; size: number; kind: 'evidence' | 'generated'; status: 'generating' | 'ready' | 'failed'; backendStored?: boolean; error?: string }
 export type ChatStage = 'filing' | 'preparation'
-export type Conversations = Record<ChatStage, UIMessage[]>
 export const categories = [
  { value: 'goods', label: 'A purchase gone wrong' },
  { value: 'services', label: 'A service not delivered' },
