@@ -5,7 +5,7 @@ import { categories, type CheckStatus } from '@/lib/types'
 import { FileCard } from './FileCard'
 export function StatusIcon({status}:{status:CheckStatus}) {return status==='passed'?<Check className="status-pass" size={16}/>:status==='blocked'?<CircleAlert className="status-block" size={16}/>:status==='checking'?<LoaderCircle className="spin" size={16}/>:<Circle size={14} className="status-pending"/>}
 export function ProgressPanel({open,onToggle,onError,onCorrection}:{open:boolean;onToggle:()=>void;onError:(s:string)=>void;onCorrection:()=>void}) {
- const {answers,checks,details,files,stage}=useCase()
+ const {answers,checks,details,files,stage,backendCaseId}=useCase()
  const count=checks.filter(c=>c.status==='passed').length
  return <aside className={`progress-panel ${open?'is-open':'is-closed'}`} aria-label="Your case and progress">
   <button className="panel-heading" onClick={onToggle} aria-expanded={open}><span><span className="panel-dot"/>Your case at a glance</span>{open?<Minus size={17}/>:<PanelRightOpen size={18}/>}</button>
@@ -18,7 +18,7 @@ export function ProgressPanel({open,onToggle,onError,onCorrection}:{open:boolean
     {details.summary&&<p className="panel-summary">{details.summary}</p>}
    </section>
    <section><div className="panel-label"><span>DOCUMENTS</span><span>{files.length}</span></div>{files.length?files.map(f=><FileCard key={f.id} file={f} compact onError={onError}/>):<div className="empty-docs"><FileText size={21}/><span>Your files will appear here.</span></div>}</section>
-   <div className="panel-foot"><span className="saved-dot"/>Saved in this browser</div>
+   <div className="panel-foot"><span className="saved-dot"/>{backendCaseId?'Case connected to backend':'Saved in this browser'}</div>
   </div>}
   {!open&&<Button variant="ghost" className="panel-mobile-label" onClick={onToggle}>View checks, details & files</Button>}
  </aside>

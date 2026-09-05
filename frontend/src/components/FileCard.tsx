@@ -7,8 +7,8 @@ export function FileCard({file, compact=false, onError}:{file:CaseFile;compact?:
  const removeFile=useCase(s=>s.removeFile)
  return <div className={`file-card ${compact?'compact':''}`}>
   <span className="file-symbol"><FileText size={19}/></span>
-  <div className="file-info"><strong title={file.name}>{file.name}</strong><span>{file.status==='generating'?'Preparing your document…':file.status==='failed'?(file.error??'Could not prepare file'):`${Math.max(1,Math.round(file.size/1024))} KB · ${file.kind==='generated'?'Sample PDF':'Saved on this device'}`}</span></div>
+  <div className="file-info"><strong title={file.name}>{file.name}</strong><span>{file.status==='generating'?'Preparing your document…':file.status==='failed'?(file.error??'Could not prepare file'):`${Math.max(1,Math.round(file.size/1024))} KB · ${file.kind==='generated'?(file.backendStored?'Backend PDF':'Sample PDF'):(file.backendStored?'Stored with this case':'Saved on this device')}`}</span></div>
   {file.status==='generating'?<LoaderCircle size={17} className="spin"/>:file.status==='failed'?<AlertCircle size={17}/>:<Button variant="ghost" size="icon" aria-label={`Download ${file.name}`} onClick={()=>downloadFile(file.id,file.name).catch(e=>onError(e.message))}><Download size={16}/></Button>}
-  {file.kind==='evidence'&&!compact&&<Button variant="ghost" size="icon" aria-label={`Remove ${file.name}`} onClick={async()=>{try{await removeBlob(file.id);removeFile(file.id)}catch{onError('Could not remove this file. Please try again.')}}}><Trash2 size={15}/></Button>}
+  {file.kind==='evidence'&&!file.backendStored&&!compact&&<Button variant="ghost" size="icon" aria-label={`Remove ${file.name}`} onClick={async()=>{try{await removeBlob(file.id);removeFile(file.id)}catch{onError('Could not remove this file. Please try again.')}}}><Trash2 size={15}/></Button>}
  </div>
 }

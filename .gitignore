@@ -1,9 +1,17 @@
-node_modules/
-dist/
-.env*
-!.env.example
 .DS_Store
 
+# Local environment files. Keep committed samples.
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Dependencies and build output.
+node_modules/
+dist/
 *.tsbuildinfo
 .pnpm-store/
 .vite/
+
+# Backend runtime data contains case and conversation state.
+server/data/
