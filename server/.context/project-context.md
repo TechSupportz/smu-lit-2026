@@ -28,37 +28,38 @@ The frontend will handle the actual user experience, forms, navigation and prese
 
 The harness should support:
 
-* conversational fact collection;
-* case-state persistence;
-* evidence/document verification;
-* receipts;
-* invoices;
-* quotations;
-* contracts;
-* WhatsApp/chat messages;
-* emails;
-* screenshots;
-* photographs;
-* other uploaded supporting documents;
-* extracting dates, amounts, parties and statements;
-* cross-checking user statements against files;
-* identifying contradictions between:
+- conversational fact collection;
+- case-state persistence;
+- evidence/document verification;
+- receipts;
+- invoices;
+- quotations;
+- contracts;
+- WhatsApp/chat messages;
+- emails;
+- screenshots;
+- photographs;
+- other uploaded supporting documents;
+- extracting dates, amounts, parties and statements;
+- cross-checking user statements against files;
+- identifying contradictions between:
 
-  * user statements;
-  * different documents;
-  * dates;
-  * monetary amounts;
-  * parties;
-* tracking fact provenance;
-* identifying missing evidence;
-* asking follow-up questions;
-* challenging unsupported assumptions;
-* preliminary SCT/pre-filing checks;
-* checking that required claimant/respondent information is available;
-* checking that remedy information is available;
-* checking special document requirements;
-* generating a final structured pre-filing state;
-* retrieving/reference official SCT procedural guidance when necessary.
+    - user statements;
+    - different documents;
+    - dates;
+    - monetary amounts;
+    - parties;
+
+- tracking fact provenance;
+- identifying missing evidence;
+- asking follow-up questions;
+- challenging unsupported assumptions;
+- preliminary SCT/pre-filing checks;
+- checking that required claimant/respondent information is available;
+- checking that remedy information is available;
+- checking special document requirements;
+- generating a final structured pre-filing state;
+- retrieving/reference official SCT procedural guidance when necessary.
 
 ---
 
@@ -66,20 +67,20 @@ The harness should support:
 
 Do NOT build:
 
-* hearing preparation;
-* consultation preparation;
-* cue cards;
-* scripts for what the claimant should say;
-* litigation strategy;
-* argument coaching;
-* witness preparation;
-* post-filing case preparation;
-* prediction of whether the user will win;
-* autonomous submission to CJTS;
-* payment;
-* service of documents;
-* Declaration of Service filing;
-* post-filing case monitoring.
+- hearing preparation;
+- consultation preparation;
+- cue cards;
+- scripts for what the claimant should say;
+- litigation strategy;
+- argument coaching;
+- witness preparation;
+- post-filing case preparation;
+- prediction of whether the user will win;
+- autonomous submission to CJTS;
+- payment;
+- service of documents;
+- Declaration of Service filing;
+- post-filing case monitoring.
 
 The harness ends when the user has:
 
@@ -185,14 +186,14 @@ Do not build a multi-agent swarm unless there is a clear later need.
 
 The agent should be able to:
 
-* move backwards and forwards through the pre-filing process;
-* inspect the current case state;
-* inspect previously uploaded evidence;
-* ask additional questions;
-* revisit previously entered facts;
-* detect when new evidence contradicts earlier information;
-* update unresolved issues;
-* determine whether required information remains missing.
+- move backwards and forwards through the pre-filing process;
+- inspect the current case state;
+- inspect previously uploaded evidence;
+- ask additional questions;
+- revisit previously entered facts;
+- detect when new evidence contradicts earlier information;
+- update unresolved issues;
+- determine whether required information remains missing.
 
 ---
 
@@ -225,15 +226,15 @@ Maintain a rough internal stage.
 
 ```ts
 type PreFilingStage =
-  | "intake"
-  | "eligibility"
-  | "parties"
-  | "claim_details"
-  | "evidence"
-  | "remedy"
-  | "verification"
-  | "final_review"
-  | "complete";
+    | "intake"
+    | "eligibility"
+    | "parties"
+    | "claim_details"
+    | "evidence"
+    | "remedy"
+    | "verification"
+    | "final_review"
+    | "complete"
 ```
 
 The agent may revisit previous stages whenever new information changes the case.
@@ -266,31 +267,28 @@ Every material statement should have provenance.
 
 ```ts
 interface Fact {
-  id: string;
-  caseId: string;
+    id: string
+    caseId: string
 
-  statement: string;
+    statement: string
 
-  sourceType:
-    | "user"
-    | "document"
-    | "ai_inference";
+    sourceType: "user" | "document" | "ai_inference"
 
-  status:
-    | "asserted"
-    | "candidate"
-    | "confirmed"
-    | "supported"
-    | "contradicted"
-    | "uncertain"
-    | "rejected";
+    status:
+        | "asserted"
+        | "candidate"
+        | "confirmed"
+        | "supported"
+        | "contradicted"
+        | "uncertain"
+        | "rejected"
 
-  sourceMessageId?: string;
+    sourceMessageId?: string
 
-  evidenceIds: string[];
+    evidenceIds: string[]
 
-  createdAt: string;
-  updatedAt: string;
+    createdAt: string
+    updatedAt: string
 }
 ```
 
@@ -339,17 +337,17 @@ For every uploaded file, store:
 
 ```ts
 interface EvidenceDocument {
-  id: string;
-  caseId: string;
+    id: string
+    caseId: string
 
-  filename: string;
-  mimeType: string;
+    filename: string
+    mimeType: string
 
-  storageKey: string;
+    storageKey: string
 
-  originalHash: string;
+    originalHash: string
 
-  uploadedAt: string;
+    uploadedAt: string
 }
 ```
 
@@ -378,23 +376,17 @@ Store provenance:
 
 ```ts
 interface EvidenceExtraction {
-  id: string;
-  evidenceId: string;
+    id: string
+    evidenceId: string
 
-  type:
-    | "date"
-    | "amount"
-    | "party"
-    | "statement"
-    | "contract_term"
-    | "address";
+    type: "date" | "amount" | "party" | "statement" | "contract_term" | "address"
 
-  value: string;
+    value: string
 
-  page?: number;
-  quote?: string;
+    page?: number
+    quote?: string
 
-  confidence?: number;
+    confidence?: number
 }
 ```
 
@@ -408,21 +400,14 @@ Maintain explicit mappings.
 
 ```ts
 interface FactEvidenceLink {
-  factId: string;
-  evidenceId: string;
+    factId: string
+    evidenceId: string
 
-  extractionId?: string;
+    extractionId?: string
 
-  relationship:
-    | "supports"
-    | "contradicts"
-    | "context"
-    | "unclear";
+    relationship: "supports" | "contradicts" | "context" | "unclear"
 
-  status:
-    | "agent_proposed"
-    | "user_confirmed"
-    | "rejected";
+    status: "agent_proposed" | "user_confirmed" | "rejected"
 }
 ```
 
@@ -499,24 +484,18 @@ Create explicit contradiction records.
 
 ```ts
 interface Contradiction {
-  id: string;
+    id: string
 
-  caseId: string;
+    caseId: string
 
-  description: string;
+    description: string
 
-  factIds: string[];
-  evidenceIds: string[];
+    factIds: string[]
+    evidenceIds: string[]
 
-  severity:
-    | "low"
-    | "medium"
-    | "high";
+    severity: "low" | "medium" | "high"
 
-  status:
-    | "open"
-    | "resolved"
-    | "accepted_uncertainty";
+    status: "open" | "resolved" | "accepted_uncertainty"
 }
 ```
 
@@ -543,23 +522,17 @@ Track unresolved issues.
 
 ```ts
 interface OpenQuestion {
-  id: string;
-  caseId: string;
+    id: string
+    caseId: string
 
-  question: string;
-  reason: string;
+    question: string
+    reason: string
 
-  relatedFactIds: string[];
+    relatedFactIds: string[]
 
-  priority:
-    | "required"
-    | "important"
-    | "optional";
+    priority: "required" | "important" | "optional"
 
-  status:
-    | "open"
-    | "answered"
-    | "unresolved";
+    status: "open" | "answered" | "unresolved"
 }
 ```
 
@@ -1071,7 +1044,7 @@ Input:
 
 ```ts
 {
-  factId: string
+    factId: string
 }
 ```
 
@@ -1136,47 +1109,47 @@ When complete, produce something like:
 
 ```ts
 interface FinalPreFilingState {
-  caseId: string;
+    caseId: string
 
-  complete: boolean;
+    complete: boolean
 
-  dispute: {
-    category: string;
-    subtype?: string;
-    causeOfActionDate: string;
-  };
+    dispute: {
+        category: string
+        subtype?: string
+        causeOfActionDate: string
+    }
 
-  claimant: Party;
-  respondents: Party[];
+    claimant: Party
+    respondents: Party[]
 
-  claim: {
-    amount: number;
-    requestedRemedies: Remedy[];
-  };
+    claim: {
+        amount: number
+        requestedRemedies: Remedy[]
+    }
 
-  facts: VerifiedFact[];
+    facts: VerifiedFact[]
 
-  timeline: TimelineEvent[];
+    timeline: TimelineEvent[]
 
-  evidence: EvidenceSummary[];
+    evidence: EvidenceSummary[]
 
-  unresolvedIssues: Issue[];
+    unresolvedIssues: Issue[]
 
-  contradictions: Contradiction[];
+    contradictions: Contradiction[]
 
-  procedural: {
-    prefilingAssessmentCompleted: boolean;
-    prefilingReferenceId?: string;
-    specialDocumentsRequired: Requirement[];
-    serviceReadiness: string;
-  };
+    procedural: {
+        prefilingAssessmentCompleted: boolean
+        prefilingReferenceId?: string
+        specialDocumentsRequired: Requirement[]
+        serviceReadiness: string
+    }
 
-  verification: {
-    materialFactsReviewed: boolean;
-    evidenceReviewed: boolean;
-    contradictionsReviewed: boolean;
-    userConfirmed: boolean;
-  };
+    verification: {
+        materialFactsReviewed: boolean
+        evidenceReviewed: boolean
+        contradictionsReviewed: boolean
+        userConfirmed: boolean
+    }
 }
 ```
 

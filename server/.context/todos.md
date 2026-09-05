@@ -7,7 +7,7 @@ Status legend: `[ ]` pending, `[-]` in progress, `[x]` verified, `[!]` blocked o
 ## 1. Discovery and architecture
 
 - [x] Read `prd-01.md`, `handoff.md`, `project-context.md`, root domain glossary, and `.env.sample`.
-- [x] Verify current Flue/Pi/OpenCode/OpenRouter package and protocol APIs against primary sources.
+- [x] Verify current Flue/Pi/OpenRouter package and protocol APIs against primary sources.
 - [ ] Record the implementation architecture and explicit provider-test limitations in the server documentation.
 
 ## 2. Runtime and persistence
@@ -31,8 +31,8 @@ Status legend: `[ ]` pending, `[-]` in progress, `[x]` verified, `[!]` blocked o
 ## 4. Agent and provider integrations
 
 - [x] Implement one `SCTPreFilingAgent` with bounded case/evidence/procedural tools; no autonomous fact confirmation.
-- [x] Configure Muse Spark 1.3 Contributor via OpenCode Go Responses protocol and per-conversation session headers.
-- [x] Implement bounded Gemini 3.8 Flash evidence extraction via OpenRouter with provenance and partial-inspection records.
+- [x] Configure the main agent through the bundled OpenRouter provider using the `OPENCODE_GO_*` environment contract.
+- [x] Implement bounded OpenRouter evidence extraction using the separate `OPENROUTER_*` environment contract with provenance and partial-inspection records.
 - [x] Surface provider/rate/modality failures as retryable processing errors, never eligibility failures.
 
 ## 5. Snapshots and PDFs

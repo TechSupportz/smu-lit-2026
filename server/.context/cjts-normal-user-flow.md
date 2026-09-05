@@ -2,7 +2,7 @@
 
 ## Scope and source
 
-This describes how an ordinary individual claimant files a small claim online in the supplied State Courts guide, *Filing a Small Claims in CJTS - A guide to filing small claims online*, dated April 2022.
+This describes how an ordinary individual claimant files a small claim online in the supplied State Courts guide, _Filing a Small Claims in CJTS - A guide to filing small claims online_, dated April 2022.
 
 It is a description of the guide's flow, not confirmation of the live CJTS process in 2026. Interface labels, fees, limits, and procedural requirements may have changed.
 
@@ -45,10 +45,10 @@ The guide warns the user not to use the browser's Back, Forward, or Refresh cont
 ### 2. Complete the pre-filing assessment
 
 1. Select one main **Nature of Dispute**:
-   - Contract for Sale of Goods;
-   - Contract for Provision of Services;
-   - Damage to Property; or
-   - Lease Not Exceeding 2 Years (Residential Premises).
+    - Contract for Sale of Goods;
+    - Contract for Provision of Services;
+    - Damage to Property; or
+    - Lease Not Exceeding 2 Years (Residential Premises).
 2. Expand the chosen category and select the appropriate dispute sub-category.
 3. Enter the **Date of Cause of Action**.
 4. Enter the **Claim Amount** in SGD.
@@ -292,15 +292,15 @@ The normal initial filing flow is complete once payment is made, the claim numbe
 
 ## Important branches
 
-| Situation | What the guide says the user does |
-|---|---|
-| The user is not ready to submit | Save As Draft and return within seven days. |
-| The user chooses Pay Later | Generate the Payment Advice and complete payment within the three-day payment-pending draft period stated in the guide. |
-| There are multiple claimants or respondents | Add each party before submission; additional parties cannot later be removed from a submitted claim. |
-| A party is a business entity | Upload the latest ACRA Business Profile for that party. |
-| The user does not understand or speak English | Select a listed language; for "Others", arrange a qualified interpreter subject to approval. |
-| The dispute spans multiple main categories | File the claims separately. |
-| The respondent cannot be served | The acknowledgement warns that the SCT may be unable to proceed. |
+| Situation                                     | What the guide says the user does                                                                                       |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| The user is not ready to submit               | Save As Draft and return within seven days.                                                                             |
+| The user chooses Pay Later                    | Generate the Payment Advice and complete payment within the three-day payment-pending draft period stated in the guide. |
+| There are multiple claimants or respondents   | Add each party before submission; additional parties cannot later be removed from a submitted claim.                    |
+| A party is a business entity                  | Upload the latest ACRA Business Profile for that party.                                                                 |
+| The user does not understand or speak English | Select a listed language; for "Others", arrange a qualified interpreter subject to approval.                            |
+| The dispute spans multiple main categories    | File the claims separately.                                                                                             |
+| The respondent cannot be served               | The acknowledgement warns that the SCT may be unable to proceed.                                                        |
 
 ## Source limitation
 

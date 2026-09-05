@@ -1,16 +1,16 @@
 {
-  "compilerOptions": {
-    "target": "ES2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noEmit": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "types": ["node", "vitest/globals"]
-  },
-  "include": ["src/**/*.ts", "test/**/*.ts", "mock/**/*.ts", "*.ts", "eslint.config.js"]
+    "compilerOptions": {
+        "target": "ES2023",
+        "lib": ["ES2023", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noEmit": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "types": ["node", "vitest/globals"]
+    },
+    "include": ["src/**/*.ts", "test/**/*.ts", "mock/**/*.ts", "*.ts", "eslint.config.js"]
 }

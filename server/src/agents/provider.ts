@@ -1,51 +1,52 @@
-import { randomUUID } from 'node:crypto';
-import { opencodeGoProvider } from '@earendil-works/pi-ai/providers/opencode-go';
-import { setProvider } from '@flue/runtime';
-import { config } from '../config.js';
+import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter"
+import { setProvider } from "@flue/runtime"
+import { config } from "../config.js"
 
-let configured = false;
+let configured = false
 
-export function configureOpenCodeGoProvider(): void {
-  if (configured) return;
-  configured = true;
-  if (config.openCodeGoKey) process.env.OPENCODE_API_KEY = config.openCodeGoKey;
+export function configureOpenRouterProvider(): void {
+    if (configured) return
+    configured = true
 
-  const base = opencodeGoProvider();
-  const provider: typeof base = {
-    ...base,
-    name: 'OpenCode Go for SCT pre-filing',
-    headers: {
-      ...base.headers,
-      'x-opencode-client': 'smu-lit-sct-prefiling',
-    },
-    getModels: () => base.getModels().map((model) => ({
-      ...model,
-      baseUrl: config.openCodeGoBaseUrl,
-    })),
-    stream(model, context, options) {
-      const sessionId = options?.sessionId ?? randomUUID();
-      return base.stream(model, context, {
-        ...options,
-        sessionId,
+    const base = openrouterProvider()
+    const baseApiKey = base.auth.apiKey
+    if (!baseApiKey) throw new Error("OpenRouter provider is missing API-key authentication")
+
+    const provider: typeof base = {
+        ...base,
+        name: "OpenRouter for SCT pre-filing",
         headers: {
-          ...options?.headers,
-          'x-opencode-client': 'smu-lit-sct-prefiling',
-          'x-opencode-session': sessionId,
+            ...base.headers,
+            "HTTP-Referer": "https://github.com/smu-lit-2026/sct-prefiling",
+            "X-Title": "SMU LIT SCT Pre-Filing Harness",
         },
-      } as never);
-    },
-    streamSimple(model, context, options) {
-      const sessionId = options?.sessionId ?? randomUUID();
-      return base.streamSimple(model, context, {
-        ...options,
-        sessionId,
-        headers: {
-          ...options?.headers,
-          'x-opencode-client': 'smu-lit-sct-prefiling',
-          'x-opencode-session': sessionId,
+        getModels: () =>
+            base.getModels().map(model => ({
+                ...model,
+                baseUrl: config.openCodeGoBaseUrl,
+            })),
+        auth: {
+            ...base.auth,
+            apiKey: {
+                ...baseApiKey,
+                name: "OpenRouter API key for SCT pre-filing",
+                check: () =>
+                    Promise.resolve(
+                        config.openCodeGoKey
+                            ? { source: "OPENCODE_GO_KEY", type: "api_key" as const }
+                            : undefined,
+                    ),
+                resolve: () =>
+                    Promise.resolve(
+                        config.openCodeGoKey
+                            ? {
+                                  auth: { apiKey: config.openCodeGoKey },
+                                  source: "OPENCODE_GO_KEY",
+                              }
+                            : undefined,
+                    ),
+            },
         },
-      });
-    },
-  };
-  setProvider(provider);
+    }
+    setProvider(provider)
 }
