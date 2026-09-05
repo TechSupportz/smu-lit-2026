@@ -8,6 +8,11 @@ import {
     type CaseDetails,
     type CaseFile,
 } from "./types"
+import {
+    frontendCategory,
+    frontendChecks,
+    type BackendCaseState,
+} from "./backend"
 const makeKey = () =>
     globalThis.crypto?.randomUUID?.() ?? `case-${Date.now()}-${Math.random().toString(36).slice(2)}`
 const defaults = () => ({
@@ -24,6 +29,8 @@ const defaults = () => ({
     details: { respondent: "", summary: "", outcome: "" } as CaseDetails,
     files: [] as CaseFile[],
     checklist: [] as string[],
+    grillStarted: false,
+    grillComplete: false,
     consultationDate: "",
     backendCaseId: null as string | null,
     backendCreateKey: makeKey(),
@@ -38,10 +45,12 @@ type CaseState = ReturnType<typeof defaults> & {
     setChecks: (checks: EligibilityCheck[]) => void
     setDetails: (details: Partial<CaseDetails>) => void
     setBackendCase: (id: string, revision: number) => void
+    syncBackendCase: (state: BackendCaseState) => void
     addFile: (file: CaseFile) => void
     updateFile: (id: string, patch: Partial<CaseFile>) => void
     removeFile: (id: string) => void
     toggleItem: (id: string) => void
+    setGrillProgress: (started: boolean, complete: boolean) => void
     setConsultationDate: (date: string) => void
     reset: () => void
 }
@@ -93,13 +102,124 @@ export const useCase = create<CaseState>()(
                     answers: { ...s.answers, ...answers },
                     checks: initialChecks.map(c => ({ ...c })),
                     checklist: [],
+                    grillStarted: false,
+                    grillComplete: false,
                     ...stamp(),
                 })),
             setChecks: checks => set({ checks, ...stamp() }),
             setDetails: details =>
-                set(s => ({ details: { ...s.details, ...details }, ...stamp() })),
+                set(s => ({
+                    details: { ...s.details, ...details },
+                    grillStarted: false,
+                    grillComplete: false,
+                    ...stamp(),
+                })),
             setBackendCase: (backendCaseId, backendRevision) =>
                 set({ backendCaseId, backendRevision, ...stamp() }),
+            syncBackendCase: state =>
+                set(current => {
+                    if (
+                        current.backendCaseId === state.case.id &&
+                        current.backendRevision !== null &&
+                        state.case.revision < current.backendRevision
+                    ) {
+                        return current
+                    }
+                    const respondent = state.parties.find(party => party.role === "RESPONDENT")
+                    const category = frontendCategory(state)
+                    const backendEvidenceIds = new Set(state.evidence.map(item => item.id))
+                    const compiledSnapshots = state.snapshots.filter(snapshot => snapshot.pdfSha256)
+                    const backendSnapshotIds = new Set(compiledSnapshots.map(item => item.id))
+                    const localFiles = current.files.filter(file => {
+                        if (!file.backendSource) return true
+                        return file.backendSource.type === "evidence"
+                            ? backendEvidenceIds.has(file.backendSource.recordId)
+                            : backendSnapshotIds.has(file.backendSource.recordId)
+                    })
+                    const evidence = state.evidence.map(item => {
+                        const existing = localFiles.find(file => file.id === item.id)
+                        return {
+                            ...existing,
+                            id: item.id,
+                            name: item.originalFilename,
+                            size: item.sizeBytes,
+                            kind: "evidence" as const,
+                            status: "ready" as const,
+                            backendStored: true,
+                            backendSource: {
+                                caseId: state.case.id,
+                                type: "evidence" as const,
+                                recordId: item.id,
+                            },
+                            error: undefined,
+                        }
+                    })
+                    const snapshots = compiledSnapshots.map(snapshot => {
+                        const name = `${snapshot.basename}.pdf`
+                        const existing = localFiles.find(
+                            file =>
+                                file.backendSource?.recordId === snapshot.id ||
+                                (file.kind === "generated" && file.backendStored && file.name === name),
+                        )
+                        return {
+                            ...existing,
+                            id: existing?.id ?? `snapshot:${snapshot.id}`,
+                            name,
+                            size: existing?.size ?? 0,
+                            kind: "generated" as const,
+                            status: "ready" as const,
+                            backendStored: true,
+                            backendSource: {
+                                caseId: state.case.id,
+                                type: "snapshot" as const,
+                                recordId: snapshot.id,
+                            },
+                            error: undefined,
+                        }
+                    })
+                    const reconciledIds = new Set([
+                        ...evidence.map(file => file.id),
+                        ...snapshots.map(file => file.id),
+                    ])
+                    return {
+                        answers: {
+                            ...current.answers,
+                            category,
+                            amount:
+                                state.case.claimAmountCents === null
+                                    ? ""
+                                    : String(state.case.claimAmountCents / 100),
+                        },
+                        checks: frontendChecks(state),
+                        details: {
+                            respondent: respondent?.name ?? "",
+                            summary: state.case.factualSummary ?? "",
+                            outcome: state.remedies[0]?.description ?? "",
+                        },
+                        files: [
+                            ...localFiles.filter(
+                                file =>
+                                    !reconciledIds.has(file.id) &&
+                                    !(
+                                        file.kind === "generated" &&
+                                        file.backendStored &&
+                                        compiledSnapshots.some(
+                                            snapshot => `${snapshot.basename}.pdf` === file.name,
+                                        )
+                                    ),
+                            ),
+                            ...evidence,
+                            ...snapshots,
+                        ],
+                        grillStarted: state.questions.length > 0,
+                        grillComplete:
+                            state.questions.length > 0 &&
+                            state.questions.every(question => question.status !== "OPEN"),
+                        backendCaseId: state.case.id,
+                        backendRevision: state.case.revision,
+                        ...stamp(),
+                    }
+                }),
             addFile: file => set(s => ({ files: [...s.files, file], ...stamp() })),
             updateFile: (id, patch) =>
                 set(s => ({
@@ -114,6 +234,8 @@ export const useCase = create<CaseState>()(
                         : [...s.checklist, id],
                     ...stamp(),
                 })),
+            setGrillProgress: (grillStarted, grillComplete) =>
+                set({ grillStarted, grillComplete, ...stamp() }),
             setConsultationDate: consultationDate => set({ consultationDate, ...stamp() }),
             reset: () => set(defaults()),
         }),

@@ -37,8 +37,44 @@ export function ProgressPanel({
     onError: (s: string) => void
     onCorrection: () => void
 }) {
-    const { answers, checks, details, files, stage, backendCaseId } = useCase()
+    const {
+        answers,
+        checks,
+        details,
+        files,
+        stage,
+        backendCaseId,
+        checklist,
+        grillStarted,
+        grillComplete,
+    } = useCase()
     const count = checks.filter(c => c.status === "passed").length
+    const eligible = checks.length > 0 && checks.every(check => check.status === "passed")
+    const preparationItems = [
+        {
+            id: "questionnaire",
+            label: "Complete the claim questionnaire",
+            done: Boolean(details.respondent && details.summary && details.outcome),
+        },
+        {
+            id: "grill",
+            label: "Review and strengthen your claim",
+            done: grillStarted && grillComplete,
+        },
+        {
+            id: "summary",
+            label: "Prepare your filing summary",
+            done: files.some(file => file.kind === "generated" && file.name.includes("filing") && file.status === "ready"),
+        },
+        { id: "filed", label: "File the claim and pay", done: checklist.includes("filed") },
+        { id: "served", label: "Serve the respondent", done: checklist.includes("served") },
+        {
+            id: "declaration",
+            label: "File the Declaration of Service",
+            done: checklist.includes("declaration"),
+        },
+    ]
+    const preparationCount = preparationItems.filter(item => item.done).length
     return (
         <aside
             className={`progress-panel ${open ? "is-open" : "is-closed"}`}
@@ -55,21 +91,30 @@ export function ProgressPanel({
                 <div className="panel-content">
                     <section>
                         <div className="panel-label">
-                            <span>ELIGIBILITY</span>
+                            <span>{eligible ? "YOUR CHECKLIST" : "ELIGIBILITY"}</span>
                             <span>
-                                {count} of {checks.length}
+                                {eligible
+                                    ? `${preparationCount} of ${preparationItems.length}`
+                                    : `${count} of ${checks.length}`}
                             </span>
                         </div>
                         <div className="check-rows">
-                            {checks.map(c => (
-                                <div className="check-row" key={c.id}>
-                                    <StatusIcon status={c.status} />
-                                    <div>
-                                        <span>{c.label}</span>
-                                        {c.status === "blocked" && <small>{c.detail}</small>}
-                                    </div>
-                                </div>
-                            ))}
+                            {eligible
+                                ? preparationItems.map(item => (
+                                      <div className="check-row" key={item.id}>
+                                          <StatusIcon status={item.done ? "passed" : "pending"} />
+                                          <div><span>{item.label}</span></div>
+                                      </div>
+                                  ))
+                                : checks.map(c => (
+                                      <div className="check-row" key={c.id}>
+                                          <StatusIcon status={c.status} />
+                                          <div>
+                                              <span>{c.label}</span>
+                                              {c.status === "blocked" && <small>{c.detail}</small>}
+                                          </div>
+                                      </div>
+                                  ))}
                         </div>
                     </section>
                     <section>
@@ -134,7 +179,7 @@ export function ProgressPanel({
             )}
             {!open && (
                 <Button variant="ghost" className="panel-mobile-label" onClick={onToggle}>
-                    View checks, details & files
+                    View progress, details & files
                 </Button>
             )}
         </aside>

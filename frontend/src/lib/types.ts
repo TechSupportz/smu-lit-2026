@@ -16,6 +16,11 @@ export type CaseFile = {
     kind: "evidence" | "generated"
     status: "generating" | "ready" | "failed"
     backendStored?: boolean
+    backendSource?: {
+        caseId: string
+        type: "evidence" | "snapshot"
+        recordId: string
+    }
     error?: string
 }
 export type ChatStage = "filing" | "preparation"

@@ -4,7 +4,7 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Checkbox } from "./ui/checkbox"
 import { useCase } from "@/lib/store"
-import { assessBackendEligibility, frontendChecks } from "@/lib/backend"
+import { assessBackendEligibility } from "@/lib/backend"
 import { categories } from "@/lib/types"
 export function Eligibility({
     onError,
@@ -21,7 +21,7 @@ export function Eligibility({
         go,
         backendCaseId,
         backendCreateKey,
-        setBackendCase,
+        syncBackendCase,
     } = useCase()
     const [checking, setChecking] = useState(false)
     const passed = checks.every(c => c.status === "passed")
@@ -32,8 +32,7 @@ export function Eligibility({
         setChecks(checks.map(c => ({ ...c, status: "checking" })))
         try {
             const state = await assessBackendEligibility(answers, backendCaseId, backendCreateKey)
-            setBackendCase(state.case.id, state.case.revision)
-            setChecks(frontendChecks(state))
+            syncBackendCase(state)
         } catch (error) {
             setChecks(checks.map(c => ({ ...c, status: "pending" })))
             onError(

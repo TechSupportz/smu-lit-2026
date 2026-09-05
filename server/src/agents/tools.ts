@@ -279,13 +279,18 @@ export function useSctTools(caseId: string): void {
 
     useTool({
         name: "add_open_question",
-        description: "Record a focused follow-up question and why it matters.",
+        description:
+            "Record a focused case question that benefits from a persistent questionnaire. Prefer plain chat for open-ended accounts or quick clarifications. Omit suggestedAnswer unless grounded in known case facts; never use fill-in-the-blank placeholders.",
         input: v.object({
             expectedRevision: RevisionSchema,
             question: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(5_000)),
             reason: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(5_000)),
             relatedFactIds: v.optional(v.array(ToolIdSchema), []),
             priority: v.picklist(["REQUIRED", "IMPORTANT", "OPTIONAL"]),
+            suggestedAnswer: v.optional(
+                v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2_000))),
+                null,
+            ),
         }),
         async run({ data }) {
             return caseStore.mutations.run(caseId, () => {

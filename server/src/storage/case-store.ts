@@ -250,6 +250,7 @@ function questionFromRow(row: Row): QuestionRecord {
         priority: row.priority,
         status: row.status,
         answer: row.answer,
+        suggestedAnswer: row.suggested_answer,
         revision: row.revision,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -1115,6 +1116,7 @@ export class CaseStore {
             reason: string
             relatedFactIds: string[]
             priority: "REQUIRED" | "IMPORTANT" | "OPTIONAL"
+            suggestedAnswer?: string | null
         },
     ): QuestionRecord {
         return this.transaction(() => {
@@ -1125,8 +1127,8 @@ export class CaseStore {
                 .prepare(
                     `
         INSERT INTO questions (
-          id, case_id, question, reason, related_fact_ids_json, priority, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          id, case_id, question, reason, related_fact_ids_json, priority, suggested_answer, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
                 )
                 .run(
@@ -1136,6 +1138,7 @@ export class CaseStore {
                     input.reason,
                     JSON.stringify(input.relatedFactIds),
                     input.priority,
+                    input.suggestedAnswer ?? null,
                     timestamp,
                     timestamp,
                 )

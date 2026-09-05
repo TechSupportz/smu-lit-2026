@@ -3,6 +3,7 @@ import { Button } from "./ui/button"
 import { downloadFile, removeBlob } from "@/lib/storage"
 import { useCase } from "@/lib/store"
 import type { CaseFile } from "@/lib/types"
+import { downloadBackendFile } from "@/lib/backend"
 export function FileCard({
     file,
     compact = false,
@@ -37,7 +38,23 @@ export function FileCard({
                     variant="ghost"
                     size="icon"
                     aria-label={`Download ${file.name}`}
-                    onClick={() => downloadFile(file.id, file.name).catch(e => onError(e.message))}
+                    onClick={() =>
+                        downloadFile(file.id, file.name).catch(async localError => {
+                            if (!file.backendSource) {
+                                onError(localError.message)
+                                return
+                            }
+                            try {
+                                await downloadBackendFile(file.backendSource, file.name)
+                            } catch (error) {
+                                onError(
+                                    error instanceof Error
+                                        ? error.message
+                                        : "The file could not be downloaded.",
+                                )
+                            }
+                        })
+                    }
                 >
                     <Download size={16} />
                 </Button>

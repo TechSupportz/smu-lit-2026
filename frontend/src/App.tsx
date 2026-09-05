@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
     ArrowLeft,
     ArrowUpRight,
@@ -17,11 +17,11 @@ import { Checkpoint } from "./components/Checkpoint"
 import { ProgressPanel } from "./components/ProgressPanel"
 import { useCase } from "./lib/store"
 import { createSamplePdf } from "./lib/demo"
-import { createBackendPdf, deleteBackendCase } from "./lib/backend"
+import { createBackendPdf, deleteBackendCase, getBackendCase } from "./lib/backend"
 import { removeBlob, saveBlob } from "./lib/storage"
 import type { Stage } from "./lib/types"
 export default function App() {
-    const { stage, go, started, files, addFile, updateFile, reset, backendCaseId, setBackendCase } =
+    const { stage, go, started, files, addFile, updateFile, reset, backendCaseId, syncBackendCase } =
         useCase()
     const [panelOpen, setPanelOpen] = useState(() => window.innerWidth > 900)
     const [correctionKey, setCorrectionKey] = useState(0)
@@ -34,6 +34,18 @@ export default function App() {
         : stage === "checkpoint"
           ? 1
           : 2
+    useEffect(() => {
+        if (!backendCaseId) return
+        void getBackendCase(backendCaseId)
+            .then(syncBackendCase)
+            .catch(error =>
+                setError(
+                    error instanceof Error
+                        ? error.message
+                        : "The latest case details could not be loaded.",
+                ),
+            )
+    }, [backendCaseId, syncBackendCase])
     async function generate(kind: "filing" | "memo") {
         const id = crypto.randomUUID()
         addFile({
@@ -57,7 +69,7 @@ export default function App() {
                       }
             await saveBlob(id, result.blob)
             updateFile(id, { name: result.filename, size: result.blob.size, status: "ready" })
-            if (result.state) setBackendCase(result.state.case.id, result.state.case.revision)
+            if (result.state) syncBackendCase(result.state)
             return true
         } catch (error) {
             const message =

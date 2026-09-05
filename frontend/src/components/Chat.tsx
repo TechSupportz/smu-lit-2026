@@ -10,21 +10,29 @@ import {
     MessageCircle,
     FileText,
     Square,
-    Check,
     LoaderCircle,
 } from "lucide-react"
-import { backendAgentUrl, syncCaseDetails, uploadBackendEvidence } from "@/lib/backend"
+import {
+    answerBackendQuestion,
+    backendAgentUrl,
+    getBackendCase,
+    uploadBackendEvidence,
+    type BackendQuestion,
+} from "@/lib/backend"
 import { useCase } from "@/lib/store"
 import { saveBlob } from "@/lib/storage"
 import type { ChatStage } from "@/lib/types"
 import { Button } from "./ui/button"
-import { Input } from "./ui/input"
 import { Textarea } from "./ui/textarea"
 import { FileCard } from "./FileCard"
 import { Eligibility } from "./Eligibility"
+import { GrillQuestionnaire } from "./CaseQuestionnaire"
 
 const INITIAL_CHAT_PROMPT =
-    "Start the pre-filing conversation. Read the current case state and ask the single most useful focused question."
+    "Read the current case and conversation. Continue intake with the next useful question, choosing the best response format according to the harness guidelines."
+// Keep the previous automatic message hidden in saved conversations.
+const LEGACY_INITIAL_CHAT_PROMPT =
+    "Read the current case and conversation. Ask the next useful intake or follow-up question using add_open_question with a suggestedAnswer. The question will be rendered as an interactive questionnaire; do not repeat it as chat text. Reuse an existing open question if present."
 const streamingMarkdownExtensions = [streamingMarkdownExtension()]
 const markdownComponents = {
     a(props) {
@@ -42,7 +50,12 @@ const markdownComponents = {
 function isInitialPrompt(message: { role: string; parts: Array<{ type: string; text?: string }> }) {
     return (
         message.role === "user" &&
-        message.parts.some(part => part.type === "text" && part.text === INITIAL_CHAT_PROMPT)
+        message.parts.some(part => part.type === "text" && (
+            part.text === INITIAL_CHAT_PROMPT ||
+            part.text === LEGACY_INITIAL_CHAT_PROMPT ||
+            part.text === "Start the pre-filing conversation. Read the current case state and ask the single most useful focused question." ||
+            part.text?.startsWith("I have submitted my questionnaire answers. Read the answered questions,")
+        ))
     )
 }
 
@@ -73,12 +86,18 @@ export function Chat({
     onError: (s: string) => void
     onGenerate: (kind: "filing" | "memo") => Promise<boolean>
 }) {
-    const { checks, details, setDetails, files, addFile, go, backendCaseId, setBackendCase } =
-        useCase()
+    const {
+        checks,
+        details,
+        files,
+        go,
+        backendCaseId,
+        syncBackendCase,
+    } = useCase()
     const [draft, setDraft] = useState("")
     const [busy, setBusy] = useState(false)
     const [uploading, setUploading] = useState(false)
-    const [showForm, setShowForm] = useState(!details.summary)
+    const [questions, setQuestions] = useState<BackendQuestion[]>([])
     const isPrep = stage === "preparation"
     const eligible = checks.every(check => check.status === "passed")
     const client = useMemo(
@@ -105,7 +124,7 @@ export function Chat({
     }, [correctionKey])
     useEffect(() => {
         endRef.current?.scrollIntoView({ block: "nearest" })
-    }, [messages])
+    }, [agent.messages.length, questions.length])
     useEffect(() => {
         if (
             isPrep ||
@@ -113,27 +132,39 @@ export function Chat({
             !client ||
             !agent.historyReady ||
             agent.status !== "idle" ||
-            agent.messages.length > 0 ||
             initialPromptSent.current
         )
             return
         initialPromptSent.current = true
-        void agent
-            .sendMessage(INITIAL_CHAT_PROMPT)
-            .catch(error =>
-                onError(
-                    error instanceof Error
-                        ? error.message
-                        : "The conversation could not be started.",
-                ),
-            )
-    }, [agent, client, eligible, isPrep, onError])
+        void getBackendCase(backendCaseId!).then(state => {
+            if (state.questions.some(question => question.status === "OPEN")) return
+            if (["READY", "READY_WITH_WARNINGS"].includes(state.case.preparationStatus)) return
+            return agent.sendMessage(INITIAL_CHAT_PROMPT)
+        }).then(refreshQuestions).catch(error =>
+            onError(
+                error instanceof Error
+                    ? error.message
+                    : "The conversation could not be started.",
+            ),
+        )
+    }, [agent, client, eligible, isPrep, onError, backendCaseId])
 
-    async function saveDetails() {
-        if (!backendCaseId) throw new Error("Run the eligibility check before saving case details.")
-        const state = await syncCaseDetails(backendCaseId, details)
-        setBackendCase(state.case.id, state.case.revision)
-        setShowForm(false)
+    useEffect(() => {
+        if (!backendCaseId || isPrep || agent.status !== "idle") return
+        void refreshQuestions().catch(error =>
+            onError(
+                error instanceof Error
+                    ? error.message
+                    : "The Grill Me questions could not be refreshed.",
+            ),
+        )
+    }, [agent.status, backendCaseId, isPrep, messages.length])
+
+    async function refreshQuestions() {
+        if (!backendCaseId) return
+        const state = await getBackendCase(backendCaseId)
+        syncBackendCase(state)
+        setQuestions(state.questions)
     }
 
     async function upload(fileList: FileList | null) {
@@ -159,15 +190,7 @@ export function Chat({
                         `The backend accepted ${file.name}, but did not return its file record.`,
                     )
                 await saveBlob(evidence.id, file)
-                addFile({
-                    id: evidence.id,
-                    name: file.name,
-                    size: file.size,
-                    status: "ready",
-                    kind: "evidence",
-                    backendStored: true,
-                })
-                setBackendCase(state.case.id, state.case.revision)
+                syncBackendCase(state)
             }
         } catch (error) {
             onError(
@@ -185,8 +208,31 @@ export function Chat({
         setDraft("")
         try {
             await agent.sendMessage(message)
+            await refreshQuestions()
         } catch (error) {
             onError(error instanceof Error ? error.message : "The message could not be sent.")
+        }
+    }
+
+    async function submitGrill(questionAnswers: Record<string, string>) {
+        if (!backendCaseId) return
+        setBusy(true)
+        try {
+            let state = await getBackendCase(backendCaseId)
+            for (const [questionId, answer] of Object.entries(questionAnswers)) {
+                state = await answerBackendQuestion(backendCaseId, questionId, answer)
+            }
+            syncBackendCase(state)
+            setQuestions(state.questions)
+            await agent.sendMessage(
+                "I have submitted my questionnaire answers. Read the answered questions, update the relevant case summary, parties and remedies from my answers, and continue with the next useful response. Choose the best response format according to the harness guidelines.",
+            )
+            await refreshQuestions()
+        } catch (error) {
+            onError(error instanceof Error ? error.message : "The questionnaire could not be saved.")
+            throw error
+        } finally {
+            setBusy(false)
         }
     }
 
@@ -194,7 +240,6 @@ export function Chat({
         if (busy || isLoading || uploading) return
         setBusy(true)
         try {
-            if (!isPrep) await saveDetails()
             const success = await onGenerate(isPrep ? "memo" : "filing")
             if (success) go(isPrep ? "complete" : "checkpoint")
         } catch (error) {
@@ -248,75 +293,6 @@ export function Chat({
                                 </p>
                             </div>
                         </div>
-                        {!isPrep && showForm && (
-                            <form
-                                className="structured-card"
-                                onSubmit={event => {
-                                    event.preventDefault()
-                                    void saveDetails().catch(error =>
-                                        onError(
-                                            error instanceof Error
-                                                ? error.message
-                                                : "The case details could not be saved.",
-                                        ),
-                                    )
-                                }}
-                            >
-                                <div className="card-heading">
-                                    <h2>The main details</h2>
-                                    <span>Start here</span>
-                                </div>
-                                <div className="eligibility-fields">
-                                    <label>
-                                        Who are you claiming against?
-                                        <Input
-                                            required
-                                            placeholder="Person or business name"
-                                            value={details.respondent}
-                                            onChange={event =>
-                                                setDetails({ respondent: event.target.value })
-                                            }
-                                        />
-                                    </label>
-                                    <label>
-                                        What happened?
-                                        <Textarea
-                                            required
-                                            rows={3}
-                                            placeholder="A short description, in your own words…"
-                                            value={details.summary}
-                                            onChange={event =>
-                                                setDetails({ summary: event.target.value })
-                                            }
-                                        />
-                                    </label>
-                                    <label>
-                                        What outcome are you hoping for?
-                                        <Input
-                                            required
-                                            placeholder="e.g. Return of my $2,400 deposit"
-                                            value={details.outcome}
-                                            onChange={event =>
-                                                setDetails({ outcome: event.target.value })
-                                            }
-                                        />
-                                    </label>
-                                    <Button type="submit">
-                                        Save these details
-                                        <Check size={16} />
-                                    </Button>
-                                </div>
-                            </form>
-                        )}
-                        {!isPrep && !showForm && (
-                            <div className="summary-confirmation">
-                                <Check size={18} />
-                                <div>
-                                    <strong>Your starting details are saved to the case.</strong>
-                                    <p>Add context or corrections in the conversation below.</p>
-                                </div>
-                            </div>
-                        )}
                         {messages.map(message => (
                             <div
                                 className={`message ${message.role === "user" ? "user-message" : "assistant-message"}`}
@@ -357,6 +333,14 @@ export function Chat({
                                 {agent.error?.message ??
                                     "The response was interrupted. Your admitted messages remain on the backend."}
                             </div>
+                        )}
+                        {!isPrep && questions.some(question => question.status === "OPEN") && (
+                            <GrillQuestionnaire
+                                key={questions.filter(question => question.status === "OPEN").map(question => question.id).join(":")}
+                                questions={questions.filter(question => question.status === "OPEN")}
+                                busy={busy || isLoading}
+                                onSubmit={submitGrill}
+                            />
                         )}
                         <div ref={endRef} />
                     </>
@@ -488,7 +472,7 @@ export function Chat({
                                 (!details.summary.trim() ||
                                     !details.respondent.trim() ||
                                     !details.outcome.trim() ||
-                                    showForm))
+                                    questions.some(question => question.status === "OPEN")))
                         }
                         onClick={() => void finish()}
                     >

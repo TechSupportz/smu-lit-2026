@@ -38,6 +38,7 @@ const AddQuestionSchema = v.object({
     reason: v.pipe(TextSchema, v.maxLength(5_000)),
     relatedFactIds: v.optional(v.array(IdSchema), []),
     priority: v.picklist(["REQUIRED", "IMPORTANT", "OPTIONAL"]),
+    suggestedAnswer: v.optional(v.nullable(v.pipe(TextSchema, v.maxLength(2_000))), null),
 })
 
 const ResolveQuestionSchema = v.object({
