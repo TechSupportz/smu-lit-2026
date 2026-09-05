@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { frontendChecks, type BackendCaseState } from "./backend"
+import { frontendCategory, frontendChecks, type BackendCaseState } from "./backend"
 
 const stateWith = (eligibilityChecks: BackendCaseState["eligibilityChecks"]): BackendCaseState => ({
     case: {
@@ -8,6 +8,8 @@ const stateWith = (eligibilityChecks: BackendCaseState["eligibilityChecks"]): Ba
         eligibilityStatus: "UNVERIFIED",
         preparationStatus: "NOT_READY",
         userReviewed: false,
+        category: null,
+        claimAmountCents: null,
     },
     parties: [],
     remedies: [],
@@ -17,6 +19,30 @@ const stateWith = (eligibilityChecks: BackendCaseState["eligibilityChecks"]): Ba
     evidence: [],
     warnings: [],
     snapshots: [],
+})
+
+describe("frontendCategory", () => {
+    it("maps backend categories and property-damage flags to sidebar values", () => {
+        const state = stateWith([])
+
+        state.case.category = "PROVISION_OF_SERVICES"
+        expect(frontendCategory(state)).toBe("services")
+
+        state.case.category = "PROPERTY_DAMAGE"
+        state.case.modelData = { model: "PROPERTY_DAMAGE", motorVehicleRelated: true }
+        expect(frontendCategory(state)).toBe("vehicle")
+
+        state.case.modelData = { model: "PROPERTY_DAMAGE", neighbourCaused: true }
+        expect(frontendCategory(state)).toBe("neighbour")
+    })
+
+    it("preserves the known generic employment subtype", () => {
+        const state = stateWith([])
+        state.case.category = "GENERIC"
+        state.case.subtype = "EMPLOYMENT"
+
+        expect(frontendCategory(state)).toBe("employment")
+    })
 })
 
 describe("frontendChecks", () => {

@@ -404,6 +404,7 @@ export const QuestionRecordSchema = v.object({
     priority: QuestionPrioritySchema,
     status: QuestionStatusSchema,
     answer: NullableStringSchema,
+    suggestedAnswer: NullableStringSchema,
     revision: v.pipe(v.number(), v.integer(), v.minValue(1)),
     createdAt: IsoDateTimeSchema,
     updatedAt: IsoDateTimeSchema,

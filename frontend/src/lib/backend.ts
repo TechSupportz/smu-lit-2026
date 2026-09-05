@@ -21,11 +21,16 @@ export type BackendCaseState = {
         eligibilityStatus: "PASS" | "FAIL" | "UNVERIFIED"
         preparationStatus: string
         userReviewed: boolean
+        category: DisputeCategory | "MOTOR_VEHICLE_DEPOSIT_REFUND" | null
+        subtype?: string | null
+        modelData?: Record<string, unknown> | null
+        claimAmountCents: number | null
+        factualSummary?: string | null
     }
     parties: Array<{ id: string; role: "CLAIMANT" | "RESPONDENT"; name: string | null }>
-    remedies: Array<{ id: string }>
+    remedies: Array<{ id: string; description?: string }>
     facts: Array<{ id: string; material: boolean; reviewStatus: string }>
-    questions: Array<{ id: string; priority: string; status: string }>
+    questions: BackendQuestion[]
     eligibilityChecks: Array<{ code: string; result: CheckResult; explanation: string }>
     evidence: Array<{
         id: string
@@ -40,7 +45,17 @@ export type BackendCaseState = {
         status: string
         fingerprint: string
     }>
-    snapshots: Array<{ id: string; basename: string }>
+    snapshots: Array<{ id: string; basename: string; pdfSha256?: string | null }>
+}
+
+export type BackendQuestion = {
+    id: string
+    question: string
+    reason: string
+    priority: string
+    status: "OPEN" | "ANSWERED" | "UNRESOLVED"
+    answer: string | null
+    suggestedAnswer: string | null
 }
 
 type ErrorEnvelope = { error?: { code?: string; message?: string; details?: unknown } }
@@ -149,6 +164,32 @@ function categoryPatch(category: string): {
             return { category: "GENERIC", subtype: "EMPLOYMENT", modelData: null }
         default:
             return { category: "GENERIC", subtype: null, modelData: null }
+    }
+}
+
+export function frontendCategory(state: BackendCaseState): string {
+    const modelData = state.case.modelData
+    switch (state.case.category) {
+        case "SALE_OF_GOODS":
+            return "goods"
+        case "PROVISION_OF_SERVICES":
+            return "services"
+        case "RESIDENTIAL_TENANCY":
+            return "tenancy"
+        case "PROPERTY_DAMAGE":
+            return modelData?.motorVehicleRelated === true
+                ? "vehicle"
+                : modelData?.neighbourCaused === true
+                  ? "neighbour"
+                  : "property"
+        case "CPFTA_UNFAIR_PRACTICE":
+            return "unfair"
+        case "GENERIC":
+            return state.case.subtype === "EMPLOYMENT" ? "employment" : "other"
+        case "MOTOR_VEHICLE_DEPOSIT_REFUND":
+            return "other"
+        default:
+            return ""
     }
 }
 
@@ -275,6 +316,22 @@ export async function syncCaseDetails(
     )
 }
 
+export async function answerBackendQuestion(
+    caseId: string,
+    questionId: string,
+    answer: string,
+): Promise<BackendCaseState> {
+    const current = await getBackendCase(caseId)
+    return request(
+        `/cases/${encodeURIComponent(caseId)}/questions/${encodeURIComponent(questionId)}`,
+        json("PATCH", {
+            expectedRevision: current.case.revision,
+            status: "ANSWERED",
+            answer,
+        }),
+    )
+}
+
 export async function uploadBackendEvidence(caseId: string, file: File): Promise<BackendCaseState> {
     const current = await getBackendCase(caseId)
     const form = new FormData()
@@ -334,4 +391,23 @@ export async function deleteBackendCase(caseId: string): Promise<void> {
     await request(`/cases/${encodeURIComponent(caseId)}?expectedRevision=${state.case.revision}`, {
         method: "DELETE",
     })
+}
+
+export async function downloadBackendFile(
+    source: NonNullable<import("./types").CaseFile["backendSource"]>,
+    filename: string,
+): Promise<void> {
+    const path =
+        source.type === "evidence"
+            ? `/cases/${encodeURIComponent(source.caseId)}/evidence/${encodeURIComponent(source.recordId)}/content`
+            : `/cases/${encodeURIComponent(source.caseId)}/snapshots/${encodeURIComponent(source.recordId)}/pdf`
+    const response = await fetch(`${backendBaseUrl}${path}`)
+    if (!response.ok) throw new Error(`The backend file download failed (${response.status}).`)
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = filename
+    anchor.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

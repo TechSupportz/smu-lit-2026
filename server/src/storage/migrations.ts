@@ -271,6 +271,9 @@ const migrations = [
   CREATE INDEX IF NOT EXISTS snapshots_case_idx ON snapshots(case_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS audit_case_idx ON audit_events(case_id, created_at);
   `,
+    `
+  ALTER TABLE questions ADD COLUMN suggested_answer TEXT;
+  `,
 ]
 
 export function migrate(database: DatabaseSync): void {

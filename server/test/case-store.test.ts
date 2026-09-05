@@ -156,8 +156,10 @@ describe("CaseStore persistence and mutation safety", () => {
                 reason: "The date is material.",
                 relatedFactIds: [fact.id],
                 priority: "REQUIRED",
+                suggestedAnswer: "It happened on the date shown on my receipt.",
             })
             expect(result.caseId).toBe(created.id)
+            expect(result.suggestedAnswer).toBe("It happened on the date shown on my receipt.")
             const paths = store.deleteCaseRecords(created.id)
             expect(paths.evidencePaths).toEqual([])
             expect(store.listCases()).toEqual([])

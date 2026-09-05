@@ -19,6 +19,9 @@ importers:
             "@fontsource/dm-serif-display":
                 specifier: latest
                 version: 5.3.0
+            "@shadcn/react":
+                specifier: ^0.3.0
+                version: 0.3.0(@types/react@19.2.18)(react@19.2.8)
             "@tanstack/markdown":
                 specifier: latest
                 version: 0.0.13(react@19.2.8)
@@ -1206,6 +1209,20 @@ packages:
             {
                 integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==,
             }
+
+    "@shadcn/react@0.3.0":
+        resolution:
+            {
+                integrity: sha512-iKN0NuYe850VDHlxEfvppFrpa7CMV3zArTHusXlaSmeFeQhohGbIqclv6WwPTs/44I8EkXQpcuRt6sXEVKkWqQ==,
+            }
+        peerDependencies:
+            "@types/react": ">=19"
+            react: ">=19"
+        peerDependenciesMeta:
+            "@types/react":
+                optional: true
+            react:
+                optional: true
 
     "@standard-schema/spec@1.1.0":
         resolution:
@@ -3431,6 +3448,11 @@ snapshots:
         optional: true
 
     "@rolldown/pluginutils@1.0.1": {}
+
+    "@shadcn/react@0.3.0(@types/react@19.2.18)(react@19.2.8)":
+        optionalDependencies:
+            "@types/react": 19.2.18
+            react: 19.2.8
 
     "@standard-schema/spec@1.1.0": {}
 
