@@ -12,7 +12,7 @@ Build a backend agent harness that helps a self-represented person collect, insp
 
 - Deliver a backend for the team’s frontend. Use Node.js, TypeScript with linting, SQLite, and Valibot. Use Hono where needed for the HTTP interface.
 - Use Flue with its Pi runtime and one main `SCTPreFilingAgent`. Configure file-backed runtime persistence through Flue’s source-root `db.ts` and built-in `sqlite()` adapter. Use `data/flue.db` for Flue runtime persistence and `data/cases.db` for application case tables, alongside local immutable evidence storage.
-- Use Muse Spark 1.3 Contributor (`muse-spark-1.3-contributor`) through OpenCode Go for the main agent, using the Responses protocol. Use Gemini 3.8 Flash (`google/gemini-3.8-flash`) through OpenRouter for evidence extraction. The user will supply `server/.env`, variable `OPENCODE_GO_KEY`, as the credential source. Never copy its value into documentation, source, logs, or examples.
+- Use the configured OpenRouter-compatible model for the main agent, with `OPENCODE_GO_KEY`, `OPENCODE_GO_BASE_URL`, and `OPENCODE_GO_MODEL` as its environment contract. The current configuration uses OpenAI GPT-5.6 Luna (`openai/gpt-5.6-luna`) through OpenRouter. Use the separate `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`, and `OPENROUTER_EXTRACTION_MODEL` contract for evidence extraction; the current configuration uses the same model. Never copy credential values into documentation, source, logs, or examples.
 - Include a Typst skill and PDF compilation capability available to the application agent. Compile a reviewed case snapshot into a Typst PDF containing parties, claim/remedy, factual summary, timeline, evidence index, and prominent unresolved warnings. Keep original evidence files separate.
 - Persist case state across turns, including parties, facts, immutable evidence originals, extractions, provenance links, questions, contradictions, procedural checks, remedies, and audit events.
 - Support non-linear investigation and revisiting previous conclusions when evidence changes.
@@ -71,7 +71,7 @@ Readiness must preserve gaps honestly: a warning acknowledgment does not resolve
 
 ### Decisions resolved in round 3
 
-- Main agent: Muse Spark 1.3 Contributor through OpenCode Go. Evidence extraction: Gemini 3.8 Flash through OpenRouter. Configure separate keys and models in `server/.env`; provide `server/.env.sample` with empty key values.
+- Main agent: OpenAI GPT-5.6 Luna through OpenRouter using the `OPENCODE_GO_*` environment contract. Evidence extraction: OpenAI GPT-5.6 Luna through OpenRouter using the separate `OPENROUTER_*` environment contract. Keep the separate keys and models configurable in `server/.env`; provide `server/.env.sample` with empty key values.
 - Internal unauthenticated demo, shared case list, frontend directly connected to backend. Persist until explicit deletion; deletion covers case records, runtime conversation, evidence, extractions, and generated artifacts. This concerns application-managed data, not provider retention.
 - PDF contents: parties, claim/remedy, factual summary, timeline, evidence index, and unresolved warnings. Significant warnings and unverified eligibility appear near the beginning. Cite source locations and retain original evidence separately.
 - Use `../../cjts-small-claim-preparation.typ` as an adaptable visual/layout reference, not a procedural authority. Replace blank worksheet boxes with populated case sections; remove payment, service, consultation/hearing sections and unverified historical constraints. Do not present the document as an official court form.
@@ -138,7 +138,7 @@ Serialize mutations per case; use revision checks for stale edits and confirmati
 
 Implement the source tool set: get/update case state, propose fact, list/inspect/extract/find files, verify fact against evidence, link evidence, detect contradictions, track/resolve questions, retrieve official guidance, check preparation, and save final state. Do not offer an unrestricted tool that marks a material candidate user-confirmed.
 
-Use one main Flue agent with Pi provider integration. Gemini extraction is a bounded tool call, not a second autonomous conversational agent. Use native PDF input where supported by the selected OpenRouter route; otherwise render pages for Gemini vision while preserving page numbers. Verify modality and structured-output compatibility with representative fixtures. No silent provider/model substitution. Expose rate limits and provider failures as retryable processing failures, preserving state.
+Use one main Flue agent with Pi provider integration. OpenRouter extraction is a bounded tool call, not a second autonomous conversational agent. Use native PDF input where supported by the selected route; otherwise render pages for model vision while preserving page numbers. Verify modality and structured-output compatibility with representative fixtures. No silent provider/model substitution. Expose rate limits and provider failures as retryable processing failures, preserving state.
 
 Mount a repository-local Typst skill on the application agent. Implementation deliverables include `server/skills/typst/SKILL.md`, a reusable case-summary template adapted from the supplied worksheet, and a bounded compilation tool. The skill must explain how to populate the template from snapshot data, preserve citations/uncertainty, avoid unsupported prose, and inspect compilation output. Treat case text as data, not executable Typst. Restrict compilation to the artifact workspace with time/resource limits; return a stored PDF reference, not arbitrary shell execution. Compilation failure does not corrupt the snapshot.
 
@@ -152,7 +152,7 @@ Only known failures against applicable verified eligibility rules hard-block. Do
 
 1. Bootstrap Node/TypeScript, lint/typecheck scripts, Valibot configuration, Flue/Pi, file-backed `db.ts`, application SQLite migrations, and environment sample.
 2. Implement case/evidence persistence and frontend API/stream contract, with shared demo access and explicit deletion.
-3. Integrate Muse conversation/tools and Gemini PDF/image extraction; verify provenance and durable recovery.
+3. Integrate the OpenRouter conversation/tools and OpenRouter PDF/image extraction; verify provenance and durable recovery.
 4. Implement six case schemas, CPFTA checks, generic intake, official retrieval, eligibility evaluation, and the one-final-warning flow.
 5. Implement revision-bound review, snapshots, Typst skill/template/compiler, PDF download, and superseded-version presentation metadata.
 6. Run acceptance fixtures and provide setup and frontend-integration documentation.
@@ -169,8 +169,8 @@ Compile representative clean and warning-heavy PDFs, extract their text, and ins
 
 `server/.env.sample` is the proposed configuration contract; backend loading/validation is an implementation deliverable. Empty API keys are intentional. Do not commit real `.env` files or database/evidence artifacts.
 
-- [OpenCode Go](https://opencode.ai/docs/go/) lists `muse-spark-1.3-contributor` at `/zen/go/v1/responses`. Include a specific application identity and per-conversation `x-opencode-session` header as documented. Availability depends on account/region and must be tested. Its Contributor offering permits training on prompts/completions and is not zero-data-retention; local case deletion does not remove provider-held data.
-- [OpenRouter Gemini 3.8 Flash](https://openrouter.ai/google/gemini-3.8-flash) documents `google/gemini-3.8-flash`. Use the separate OpenRouter key. Verify actual PDF/image transport through this route rather than assuming all provider protocols are interchangeable.
+- The current runtime uses the bundled OpenRouter provider for the main agent and routes `OPENCODE_GO_BASE_URL` to `https://openrouter.ai/api/v1`, with `OPENCODE_GO_MODEL=openai/gpt-5.6-luna`. Its key is resolved from `OPENCODE_GO_KEY`, independently from the extraction key.
+- Evidence extraction uses the OpenRouter chat-completions route and `OPENROUTER_EXTRACTION_MODEL`; verify actual PDF/image transport and structured-output compatibility for the configured model rather than assuming all routes are interchangeable.
 
 ## Final review
 

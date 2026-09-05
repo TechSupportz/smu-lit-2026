@@ -1,167 +1,215 @@
 {
-  "schemaVersion": "1.0.0",
-  "snapshot": {
-    "id": "snapshot_mock_clean_20260905",
-    "name": "snapshot_mock_clean_20260905.json",
-    "displayName": "Alex Claimant v Example Supplies",
-    "createdAt": "2026-09-05T09:00:00.000Z",
-    "caseId": "case_mock_clean_20260905",
-    "caseRevision": 8,
-    "supersedesSnapshotId": null
-  },
-  "status": {
-    "eligibilityStatus": "PASS",
-    "preparationStatus": "READY",
-    "userReviewed": true,
-    "canProceed": true,
-    "handoffPermission": "FILING_READY"
-  },
-  "dispute": {
-    "category": "SALE_OF_GOODS",
-    "subtype": "Non-delivery after payment",
-    "categoryConfidence": 0.98,
-    "categoryUserConfirmed": true,
-    "modelData": {
-      "model": "SALE_OF_GOODS",
-      "item": "Two custom office chairs",
-      "agreement": "Written order dated 10 July 2026",
-      "delivery": "Delivery promised by 24 July 2026",
-      "allegedIssue": "The chairs were not delivered",
-      "payments": [{ "amountCents": 120000, "wording": "Paid in full by bank transfer" }],
-      "remedyNotes": "Refund the price paid"
-    },
-    "causeOfActionDate": "2026-07-25",
-    "causeOfActionDateOriginal": "25 July 2026",
-    "causeOfActionDatePrecision": "EXACT",
-    "factualSummary": "The claimant paid for two chairs. The respondent did not deliver them by the agreed date and has not refunded the payment."
-  },
-  "parties": [
-    {
-      "id": "party_mock_claimant",
-      "caseId": "case_mock_clean_20260905",
-      "role": "CLAIMANT",
-      "kind": "INDIVIDUAL",
-      "name": "Alex Claimant",
-      "identificationType": null,
-      "identificationNumber": null,
-      "phone": "+65 8123 4567",
-      "email": "alex@example.test",
-      "address": "10 Example Street, Singapore 123456",
-      "country": "Singapore",
-      "isPrimary": true,
-      "revision": 1,
-      "createdAt": "2026-09-05T08:00:00.000Z",
-      "updatedAt": "2026-09-05T08:00:00.000Z"
-    },
-    {
-      "id": "party_mock_respondent",
-      "caseId": "case_mock_clean_20260905",
-      "role": "RESPONDENT",
-      "kind": "ENTITY",
-      "name": "Example Supplies Pte. Ltd.",
-      "identificationType": "UEN",
-      "identificationNumber": "202612345A",
-      "phone": "+65 6123 4567",
-      "email": "support@example-supplies.test",
-      "address": "20 Sample Road, Singapore 234567",
-      "country": "Singapore",
-      "isPrimary": true,
-      "revision": 1,
-      "createdAt": "2026-09-05T08:01:00.000Z",
-      "updatedAt": "2026-09-05T08:01:00.000Z"
-    }
-  ],
-  "claimsAndRemedies": {
-    "claimAmountCents": 120000,
-    "consentStatus": "NO",
-    "remedies": [
-      {
-        "id": "remedy_mock_refund",
+    "schemaVersion": "1.0.0",
+    "snapshot": {
+        "id": "snapshot_mock_clean_20260905",
+        "name": "snapshot_mock_clean_20260905.json",
+        "displayName": "Alex Claimant v Example Supplies",
+        "createdAt": "2026-09-05T09:00:00.000Z",
         "caseId": "case_mock_clean_20260905",
-        "type": "MONEY",
-        "description": "Refund of the purchase price",
-        "amountCents": 120000,
-        "basis": "Amount paid under the order",
-        "revision": 1,
-        "createdAt": "2026-09-05T08:02:00.000Z",
-        "updatedAt": "2026-09-05T08:02:00.000Z"
-      }
-    ]
-  },
-  "facts": [
-    {
-      "id": "fact_mock_payment",
-      "caseId": "case_mock_clean_20260905",
-      "statement": "The claimant paid SGD 1,200 by bank transfer on 10 July 2026.",
-      "structuredValue": { "date": "2026-07-10", "precision": "EXACT", "originalWording": "10 July 2026" },
-      "sourceType": "USER_ASSERTION",
-      "sourceMessageId": "msg_mock_1",
-      "reviewStatus": "CONFIRMED",
-      "evidenceAssessment": "SUPPORTED",
-      "material": true,
-      "revision": 2,
-      "createdAt": "2026-09-05T08:03:00.000Z",
-      "updatedAt": "2026-09-05T08:10:00.000Z"
+        "caseRevision": 8,
+        "supersedesSnapshotId": null
     },
-    {
-      "id": "fact_mock_nondelivery",
-      "caseId": "case_mock_clean_20260905",
-      "statement": "The respondent did not deliver the chairs by 24 July 2026.",
-      "structuredValue": { "date": "2026-07-25", "precision": "EXACT", "originalWording": "by 24 July 2026" },
-      "sourceType": "USER_ASSERTION",
-      "sourceMessageId": "msg_mock_2",
-      "reviewStatus": "CONFIRMED",
-      "evidenceAssessment": "SUPPORTED",
-      "material": true,
-      "revision": 2,
-      "createdAt": "2026-09-05T08:04:00.000Z",
-      "updatedAt": "2026-09-05T08:11:00.000Z"
-    }
-  ],
-  "timeline": [
-    { "factId": "fact_mock_payment", "date": "2026-07-10", "originalWording": "10 July 2026", "precision": "EXACT", "statement": "The claimant paid SGD 1,200 by bank transfer on 10 July 2026.", "reviewStatus": "CONFIRMED", "evidenceAssessment": "SUPPORTED" },
-    { "factId": "fact_mock_nondelivery", "date": "2026-07-25", "originalWording": "by 24 July 2026", "precision": "EXACT", "statement": "The respondent did not deliver the chairs by 24 July 2026.", "reviewStatus": "CONFIRMED", "evidenceAssessment": "SUPPORTED" }
-  ],
-  "evidenceIndex": [
-    {
-      "id": "evidence_mock_order",
-      "originalFilename": "order-and-transfer.pdf",
-      "mimeType": "application/pdf",
-      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "sizeBytes": 24576,
-      "documentType": "ORDER",
-      "description": "Order confirmation and bank transfer receipt.",
-      "relevantPages": [1, 2],
-      "pageCount": 2,
-      "processingStatus": "PROCESSED",
-      "processingError": null,
-      "extractionRuns": [],
-      "extractions": [
-        { "id": "extraction_mock_amount", "caseId": "case_mock_clean_20260905", "evidenceId": "evidence_mock_order", "type": "AMOUNT", "value": "SGD 1,200", "page": 2, "quote": "Total paid: SGD 1,200", "location": "Payment receipt", "confidence": 0.99, "model": "google/gemini-3.8-flash", "extractionRunId": "run_mock_order", "createdAt": "2026-09-05T08:20:00.000Z" }
-      ],
-      "factLinks": []
-    }
-  ],
-  "unresolvedQuestions": [],
-  "contradictions": [],
-  "proceduralChecks": [
-    { "id": "check_mock_amount", "caseId": "case_mock_clean_20260905", "code": "AMOUNT_LIMIT", "result": "PASS", "explanation": "The amount does not exceed SGD 20,000.", "inputs": { "claimAmountCents": 120000, "consentStatus": "NO" }, "sourceUrl": "https://www.judiciary.gov.sg/civil/cases-eligible-small-claim", "sourceVersion": "judiciary-sct-2026-09-05", "checkedAt": "2026-09-05T08:30:00.000Z", "retrievalStatus": "RETRIEVED" }
-  ],
-  "proceduralRequirements": [],
-  "reviewRecords": {
-    "caseUserReviewed": true,
-    "factReviews": [
-      { "factId": "fact_mock_payment", "reviewStatus": "CONFIRMED", "revision": 2 },
-      { "factId": "fact_mock_nondelivery", "reviewStatus": "CONFIRMED", "revision": 2 }
+    "status": {
+        "eligibilityStatus": "PASS",
+        "preparationStatus": "READY",
+        "userReviewed": true,
+        "canProceed": true,
+        "handoffPermission": "FILING_READY"
+    },
+    "dispute": {
+        "category": "SALE_OF_GOODS",
+        "subtype": "Non-delivery after payment",
+        "categoryConfidence": 0.98,
+        "categoryUserConfirmed": true,
+        "modelData": {
+            "model": "SALE_OF_GOODS",
+            "item": "Two custom office chairs",
+            "agreement": "Written order dated 10 July 2026",
+            "delivery": "Delivery promised by 24 July 2026",
+            "allegedIssue": "The chairs were not delivered",
+            "payments": [{ "amountCents": 120000, "wording": "Paid in full by bank transfer" }],
+            "remedyNotes": "Refund the price paid"
+        },
+        "causeOfActionDate": "2026-07-25",
+        "causeOfActionDateOriginal": "25 July 2026",
+        "causeOfActionDatePrecision": "EXACT",
+        "factualSummary": "The claimant paid for two chairs. The respondent did not deliver them by the agreed date and has not refunded the payment."
+    },
+    "parties": [
+        {
+            "id": "party_mock_claimant",
+            "caseId": "case_mock_clean_20260905",
+            "role": "CLAIMANT",
+            "kind": "INDIVIDUAL",
+            "name": "Alex Claimant",
+            "identificationType": null,
+            "identificationNumber": null,
+            "phone": "+65 8123 4567",
+            "email": "alex@example.test",
+            "address": "10 Example Street, Singapore 123456",
+            "country": "Singapore",
+            "isPrimary": true,
+            "revision": 1,
+            "createdAt": "2026-09-05T08:00:00.000Z",
+            "updatedAt": "2026-09-05T08:00:00.000Z"
+        },
+        {
+            "id": "party_mock_respondent",
+            "caseId": "case_mock_clean_20260905",
+            "role": "RESPONDENT",
+            "kind": "ENTITY",
+            "name": "Example Supplies Pte. Ltd.",
+            "identificationType": "UEN",
+            "identificationNumber": "202612345A",
+            "phone": "+65 6123 4567",
+            "email": "support@example-supplies.test",
+            "address": "20 Sample Road, Singapore 234567",
+            "country": "Singapore",
+            "isPrimary": true,
+            "revision": 1,
+            "createdAt": "2026-09-05T08:01:00.000Z",
+            "updatedAt": "2026-09-05T08:01:00.000Z"
+        }
     ],
-    "warningAcknowledgments": []
-  },
-  "warnings": [],
-  "readinessReasons": [],
-  "limitations": [
-    "This is a preparation snapshot, not an official court form or legal advice.",
-    "User confirmation does not independently establish documentary support or legal correctness.",
-    "AI extractions and inferences remain distinguishable from user-confirmed facts.",
-    "Original evidence is stored separately and is not embedded in this snapshot."
-  ]
+    "claimsAndRemedies": {
+        "claimAmountCents": 120000,
+        "consentStatus": "NO",
+        "remedies": [
+            {
+                "id": "remedy_mock_refund",
+                "caseId": "case_mock_clean_20260905",
+                "type": "MONEY",
+                "description": "Refund of the purchase price",
+                "amountCents": 120000,
+                "basis": "Amount paid under the order",
+                "revision": 1,
+                "createdAt": "2026-09-05T08:02:00.000Z",
+                "updatedAt": "2026-09-05T08:02:00.000Z"
+            }
+        ]
+    },
+    "facts": [
+        {
+            "id": "fact_mock_payment",
+            "caseId": "case_mock_clean_20260905",
+            "statement": "The claimant paid SGD 1,200 by bank transfer on 10 July 2026.",
+            "structuredValue": {
+                "date": "2026-07-10",
+                "precision": "EXACT",
+                "originalWording": "10 July 2026"
+            },
+            "sourceType": "USER_ASSERTION",
+            "sourceMessageId": "msg_mock_1",
+            "reviewStatus": "CONFIRMED",
+            "evidenceAssessment": "SUPPORTED",
+            "material": true,
+            "revision": 2,
+            "createdAt": "2026-09-05T08:03:00.000Z",
+            "updatedAt": "2026-09-05T08:10:00.000Z"
+        },
+        {
+            "id": "fact_mock_nondelivery",
+            "caseId": "case_mock_clean_20260905",
+            "statement": "The respondent did not deliver the chairs by 24 July 2026.",
+            "structuredValue": {
+                "date": "2026-07-25",
+                "precision": "EXACT",
+                "originalWording": "by 24 July 2026"
+            },
+            "sourceType": "USER_ASSERTION",
+            "sourceMessageId": "msg_mock_2",
+            "reviewStatus": "CONFIRMED",
+            "evidenceAssessment": "SUPPORTED",
+            "material": true,
+            "revision": 2,
+            "createdAt": "2026-09-05T08:04:00.000Z",
+            "updatedAt": "2026-09-05T08:11:00.000Z"
+        }
+    ],
+    "timeline": [
+        {
+            "factId": "fact_mock_payment",
+            "date": "2026-07-10",
+            "originalWording": "10 July 2026",
+            "precision": "EXACT",
+            "statement": "The claimant paid SGD 1,200 by bank transfer on 10 July 2026.",
+            "reviewStatus": "CONFIRMED",
+            "evidenceAssessment": "SUPPORTED"
+        },
+        {
+            "factId": "fact_mock_nondelivery",
+            "date": "2026-07-25",
+            "originalWording": "by 24 July 2026",
+            "precision": "EXACT",
+            "statement": "The respondent did not deliver the chairs by 24 July 2026.",
+            "reviewStatus": "CONFIRMED",
+            "evidenceAssessment": "SUPPORTED"
+        }
+    ],
+    "evidenceIndex": [
+        {
+            "id": "evidence_mock_order",
+            "originalFilename": "order-and-transfer.pdf",
+            "mimeType": "application/pdf",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sizeBytes": 24576,
+            "documentType": "ORDER",
+            "description": "Order confirmation and bank transfer receipt.",
+            "relevantPages": [1, 2],
+            "pageCount": 2,
+            "processingStatus": "PROCESSED",
+            "processingError": null,
+            "extractionRuns": [],
+            "extractions": [
+                {
+                    "id": "extraction_mock_amount",
+                    "caseId": "case_mock_clean_20260905",
+                    "evidenceId": "evidence_mock_order",
+                    "type": "AMOUNT",
+                    "value": "SGD 1,200",
+                    "page": 2,
+                    "quote": "Total paid: SGD 1,200",
+                    "location": "Payment receipt",
+                    "confidence": 0.99,
+                    "model": "google/gemini-3.8-flash",
+                    "extractionRunId": "run_mock_order",
+                    "createdAt": "2026-09-05T08:20:00.000Z"
+                }
+            ],
+            "factLinks": []
+        }
+    ],
+    "unresolvedQuestions": [],
+    "contradictions": [],
+    "proceduralChecks": [
+        {
+            "id": "check_mock_amount",
+            "caseId": "case_mock_clean_20260905",
+            "code": "AMOUNT_LIMIT",
+            "result": "PASS",
+            "explanation": "The amount does not exceed SGD 20,000.",
+            "inputs": { "claimAmountCents": 120000, "consentStatus": "NO" },
+            "sourceUrl": "https://www.judiciary.gov.sg/civil/cases-eligible-small-claim",
+            "sourceVersion": "judiciary-sct-2026-09-05",
+            "checkedAt": "2026-09-05T08:30:00.000Z",
+            "retrievalStatus": "RETRIEVED"
+        }
+    ],
+    "proceduralRequirements": [],
+    "reviewRecords": {
+        "caseUserReviewed": true,
+        "factReviews": [
+            { "factId": "fact_mock_payment", "reviewStatus": "CONFIRMED", "revision": 2 },
+            { "factId": "fact_mock_nondelivery", "reviewStatus": "CONFIRMED", "revision": 2 }
+        ],
+        "warningAcknowledgments": []
+    },
+    "warnings": [],
+    "readinessReasons": [],
+    "limitations": [
+        "This is a preparation snapshot, not an official court form or legal advice.",
+        "User confirmation does not independently establish documentary support or legal correctness.",
+        "AI extractions and inferences remain distinguishable from user-confirmed facts.",
+        "Original evidence is stored separately and is not embedded in this snapshot."
+    ]
 }

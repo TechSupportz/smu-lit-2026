@@ -55,13 +55,13 @@ CJTS retrieves claimant details from the applicant's profile and the pre-filing 
 - [ ] Contact number 2, if any.
 - [ ] Valid email address. The Tribunals may use it for electronic mail.
 - [ ] Registered/service address:
-  - [ ] premises type;
-  - [ ] postal code;
-  - [ ] block or house number;
-  - [ ] street name;
-  - [ ] floor and unit number, where applicable;
-  - [ ] building name, where applicable; and
-  - [ ] country.
+    - [ ] premises type;
+    - [ ] postal code;
+    - [ ] block or house number;
+    - [ ] street name;
+    - [ ] floor and unit number, where applicable;
+    - [ ] building name, where applicable; and
+    - [ ] country.
 - [ ] Details of every additional claimant, if any.
 - [ ] Every additional address for service, if any.
 
@@ -75,13 +75,13 @@ Important: the guide says additional claimants, respondents, and addresses canno
 - [ ] Contact number 2, if known.
 - [ ] Email address, if known.
 - [ ] Registered/service address:
-  - [ ] premises type;
-  - [ ] postal code;
-  - [ ] block or house number;
-  - [ ] street name;
-  - [ ] floor and unit number, where applicable;
-  - [ ] building name, where applicable; and
-  - [ ] country.
+    - [ ] premises type;
+    - [ ] postal code;
+    - [ ] block or house number;
+    - [ ] street name;
+    - [ ] floor and unit number, where applicable;
+    - [ ] building name, where applicable; and
+    - [ ] country.
 - [ ] Details of every additional respondent, if any.
 - [ ] Every additional address for service, if any.
 
@@ -115,9 +115,9 @@ The guide's screenshot for a residential lease refund shows these fields; other 
 - [ ] Keep each PDF at or below **5 MB**.
 - [ ] Remove special characters from filenames; the screenshot specifically gives `@`, `/`, `\`, and `%` as examples that filenames cannot contain.
 - [ ] For every attachment, prepare:
-  - [ ] the CJTS document type;
-  - [ ] a short document description; and
-  - [ ] the page number being referred to.
+    - [ ] the CJTS document type;
+    - [ ] a short document description; and
+    - [ ] the page number being referred to.
 - [ ] Check the document before uploading: the guide says a submitted document cannot be deleted or removed from the system.
 - [ ] If either claimant or respondent is not an individual, obtain and upload the **latest ACRA Business Profile** for that party.
 - [ ] Gather evidence relevant to the dispute, such as an agreement, receipt, invoice, correspondence, photographs, itemised loss calculation, or proof of payment. CJTS suggests document types according to the dispute. The guide's rental example shows a rental agreement and stamp-duty document. (pp. 24, 27)

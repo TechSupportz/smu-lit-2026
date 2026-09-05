@@ -1,25 +1,274 @@
-import { useState } from 'react'
-import { ArrowRight, ShieldCheck, Info, RotateCcw, LoaderCircle, ExternalLink } from 'lucide-react'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Checkbox } from './ui/checkbox'
-import { useCase } from '@/lib/store'
-import { assessBackendEligibility, frontendChecks } from '@/lib/backend'
-import { categories } from '@/lib/types'
-export function Eligibility({onError}:{onError:(message:string)=>void}) {
- const {answers,setAnswers,checks,setChecks,go,backendCaseId,backendCreateKey,setBackendCase}=useCase();const [checking,setChecking]=useState(false)
- const passed=checks.every(c=>c.status==='passed');const blocked=checks.some(c=>c.status==='blocked');const assessed=checks.some(c=>c.status==='passed'||c.status==='blocked')
- async function assess(){setChecking(true);setChecks(checks.map(c=>({...c,status:'checking'})));try{const state=await assessBackendEligibility(answers,backendCaseId,backendCreateKey);setBackendCase(state.case.id,state.case.revision);setChecks(frontendChecks(state))}catch(error){setChecks(checks.map(c=>({...c,status:'pending'})));onError(error instanceof Error?error.message:'The eligibility service is unavailable.')}finally{setChecking(false)}}
- function sample(){const day=new Date();day.setMonth(day.getMonth()-3);setAnswers({amount:'2400',eventDate:`${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`,respondentInSingapore:'yes',category:'goods',consent:false})}
- return <div className="stage-content"><div className="stage-eyebrow"><ShieldCheck size={16}/>STEP 1 · CHECK ELIGIBILITY</div><h1>First, let’s find<br/>your starting point.</h1><p className="stage-description">A few details help us check if this is the right path for your claim.</p>
- <div className="assistant-intro"><span className="assistant-avatar"><ShieldCheck size={18}/></span><div><strong>ClaimGuide</strong><p>Let’s start with the basics. You don’t need to have all your documents ready yet.</p></div></div>
- <form className="structured-card" onSubmit={e=>{e.preventDefault();void assess()}}><div className="card-heading"><h2>A little about your claim</h2><span>Eligibility check</span></div>
- <fieldset disabled={checking} className="eligibility-fields"><div className="field-grid"><label>How much are you claiming?<div className="currency-input"><span>S$</span><Input aria-label="Claim amount" type="number" min="0.01" step="0.01" required placeholder="e.g. 2,400" value={answers.amount} onChange={e=>setAnswers({amount:e.target.value})}/></div></label><label>When did the issue arise?<Input aria-label="Date the issue arose" type="date" required value={answers.eventDate} onChange={e=>setAnswers({eventDate:e.target.value})}/></label></div>
- <label>What is your claim about?<select value={answers.category} required onChange={e=>setAnswers({category:e.target.value})}><option value="">Select the closest match</option>{categories.map(c=><option key={c.value} value={c.value}>{c.label}{c.detail?` — ${c.detail}`:''}</option>)}</select></label>
- <div><p className="field-label">Is the respondent located in Singapore?</p><p className="field-hint">The respondent is the person or business you’re claiming against.</p><div className="radio-options">{[{value:'yes',label:'Yes, in Singapore'},{value:'no',label:'No, outside Singapore'},{value:'unsure',label:'I’m not sure'}].map(option=><label key={option.value} className={answers.respondentInSingapore===option.value?'selected':''}><input type="radio" name="location" value={option.value} checked={answers.respondentInSingapore===option.value} onChange={()=>setAnswers({respondentInSingapore:option.value})} required/>{option.label}</label>)}</div></div>
- {Number(answers.amount)>20000&&Number(answers.amount)<=30000&&<label className="consent-row"><Checkbox checked={answers.consent} onCheckedChange={checked=>setAnswers({consent:checked===true})}/><span>Both parties have signed a Memorandum of Consent for a claim above $20,000.</span></label>}
- <div className="form-foot"><Button type="submit" disabled={checking}>{checking?<><LoaderCircle size={16} className="spin"/>Checking…</>:<>Check eligibility<ArrowRight size={16}/></>}</Button><Button type="button" variant="ghost" onClick={sample}>Use example details</Button></div></fieldset></form>
- <div aria-live="polite">{passed?<div className="result-card success"><ShieldCheck size={22}/><div><h3>These details pass the backend checks.</h3><p>You can move on to preparing your claim. You’ll still complete the official CJTS assessment before filing.</p><Button onClick={()=>go('filing')}>Start preparing my claim<ArrowRight size={16}/></Button></div></div>:blocked?<div className="result-card blocked"><Info size={22}/><div><h3>This claim can’t proceed in this flow.</h3>{checks.filter(c=>c.status==='blocked').map(c=><p key={c.id}>{c.detail}</p>)}<p>You can correct your answers above if something was entered incorrectly.</p><a href="https://www.judiciary.gov.sg/civil/cases-eligible-small-claim" target="_blank" rel="noreferrer">View official eligibility guidance<ExternalLink size={13}/></a></div></div>:assessed?<div className="result-card"><Info size={20}/><div><h3>We need a little more information.</h3>{checks.filter(c=>c.status==='pending').map(c=><p key={c.id}>{c.detail}</p>)}</div></div>:null}</div>
- <p className="quiet-note"><RotateCcw size={14}/>Your answers are saved. You can leave and return whenever you need.</p>
- </div>
+import { useState } from "react"
+import { ArrowRight, ShieldCheck, Info, RotateCcw, LoaderCircle, ExternalLink } from "lucide-react"
+import { Button } from "./ui/button"
+import { Input } from "./ui/input"
+import { Checkbox } from "./ui/checkbox"
+import { useCase } from "@/lib/store"
+import { assessBackendEligibility, frontendChecks } from "@/lib/backend"
+import { categories } from "@/lib/types"
+export function Eligibility({
+    onError,
+    embedded = false,
+}: {
+    onError: (message: string) => void
+    embedded?: boolean
+}) {
+    const {
+        answers,
+        setAnswers,
+        checks,
+        setChecks,
+        go,
+        backendCaseId,
+        backendCreateKey,
+        setBackendCase,
+    } = useCase()
+    const [checking, setChecking] = useState(false)
+    const passed = checks.every(c => c.status === "passed")
+    const blocked = checks.some(c => c.status === "blocked")
+    const assessed = checks.some(c => c.status === "passed" || c.status === "blocked")
+    async function assess() {
+        setChecking(true)
+        setChecks(checks.map(c => ({ ...c, status: "checking" })))
+        try {
+            const state = await assessBackendEligibility(answers, backendCaseId, backendCreateKey)
+            setBackendCase(state.case.id, state.case.revision)
+            setChecks(frontendChecks(state))
+        } catch (error) {
+            setChecks(checks.map(c => ({ ...c, status: "pending" })))
+            onError(
+                error instanceof Error ? error.message : "The eligibility service is unavailable.",
+            )
+        } finally {
+            setChecking(false)
+        }
+    }
+    function sample() {
+        const day = new Date()
+        day.setMonth(day.getMonth() - 3)
+        setAnswers({
+            amount: "2400",
+            eventDate: `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`,
+            respondentInSingapore: "yes",
+            category: "goods",
+            consent: false,
+        })
+    }
+    return (
+        <div className={embedded ? "eligibility-in-chat" : "stage-content"}>
+            {!embedded && (
+                <>
+                    <div className="stage-eyebrow">
+                        <ShieldCheck size={16} />
+                        STEP 1 · CHECK ELIGIBILITY
+                    </div>
+                    <h1>
+                        First, let’s find
+                        <br />
+                        your starting point.
+                    </h1>
+                    <p className="stage-description">
+                        A few details help us check if this is the right path for your claim.
+                    </p>
+                </>
+            )}
+            <div className="assistant-intro">
+                <span className="assistant-avatar">
+                    <ShieldCheck size={18} />
+                </span>
+                <div>
+                    <strong>ClaimGuide</strong>
+                    <p>
+                        {embedded
+                            ? "Before we begin, tell me a few basics so I can check whether this is the right path for your claim."
+                            : "Let’s start with the basics. You don’t need to have all your documents ready yet."}
+                    </p>
+                </div>
+            </div>
+            <form
+                className="structured-card"
+                onSubmit={e => {
+                    e.preventDefault()
+                    void assess()
+                }}
+            >
+                <div className="card-heading">
+                    <h2>A little about your claim</h2>
+                    <span>Eligibility check</span>
+                </div>
+                <fieldset disabled={checking} className="eligibility-fields">
+                    <div className="field-grid">
+                        <label>
+                            How much are you claiming?
+                            <div className="currency-input">
+                                <span>S$</span>
+                                <Input
+                                    aria-label="Claim amount"
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    required
+                                    placeholder="e.g. 2,400"
+                                    value={answers.amount}
+                                    onChange={e => setAnswers({ amount: e.target.value })}
+                                />
+                            </div>
+                        </label>
+                        <label>
+                            When did the issue arise?
+                            <Input
+                                aria-label="Date the issue arose"
+                                type="date"
+                                required
+                                value={answers.eventDate}
+                                onChange={e => setAnswers({ eventDate: e.target.value })}
+                            />
+                        </label>
+                    </div>
+                    <label>
+                        What is your claim about?
+                        <select
+                            value={answers.category}
+                            required
+                            onChange={e => setAnswers({ category: e.target.value })}
+                        >
+                            <option value="">Select the closest match</option>
+                            {categories.map(c => (
+                                <option key={c.value} value={c.value}>
+                                    {c.label}
+                                    {c.detail ? ` — ${c.detail}` : ""}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <div>
+                        <p className="field-label">Is the respondent located in Singapore?</p>
+                        <p className="field-hint">
+                            The respondent is the person or business you’re claiming against.
+                        </p>
+                        <div className="radio-options">
+                            {[
+                                { value: "yes", label: "Yes, in Singapore" },
+                                { value: "no", label: "No, outside Singapore" },
+                                { value: "unsure", label: "I’m not sure" },
+                            ].map(option => (
+                                <label
+                                    key={option.value}
+                                    className={
+                                        answers.respondentInSingapore === option.value
+                                            ? "selected"
+                                            : ""
+                                    }
+                                >
+                                    <input
+                                        type="radio"
+                                        name="location"
+                                        value={option.value}
+                                        checked={answers.respondentInSingapore === option.value}
+                                        onChange={() =>
+                                            setAnswers({ respondentInSingapore: option.value })
+                                        }
+                                        required
+                                    />
+                                    {option.label}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    {Number(answers.amount) > 20000 && Number(answers.amount) <= 30000 && (
+                        <label className="consent-row">
+                            <Checkbox
+                                checked={answers.consent}
+                                onCheckedChange={checked =>
+                                    setAnswers({ consent: checked === true })
+                                }
+                            />
+                            <span>
+                                Both parties have signed a Memorandum of Consent for a claim above
+                                $20,000.
+                            </span>
+                        </label>
+                    )}
+                    <div className="form-foot">
+                        <Button type="submit" disabled={checking}>
+                            {checking ? (
+                                <>
+                                    <LoaderCircle size={16} className="spin" />
+                                    Checking…
+                                </>
+                            ) : (
+                                <>
+                                    Check eligibility
+                                    <ArrowRight size={16} />
+                                </>
+                            )}
+                        </Button>
+                        <Button type="button" variant="ghost" onClick={sample}>
+                            Use example details
+                        </Button>
+                    </div>
+                </fieldset>
+            </form>
+            <div aria-live="polite">
+                {passed ? (
+                    <div className="result-card success">
+                        <ShieldCheck size={22} />
+                        <div>
+                            <h3>These details pass the backend checks.</h3>
+                            <p>
+                                You can move on to preparing your claim. You’ll still complete the
+                                official CJTS assessment before filing.
+                            </p>
+                            {!embedded && (
+                                <Button onClick={() => go("filing")}>
+                                    Start preparing my claim
+                                    <ArrowRight size={16} />
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                ) : blocked ? (
+                    <div className="result-card blocked">
+                        <Info size={22} />
+                        <div>
+                            <h3>This claim can’t proceed in this flow.</h3>
+                            {checks
+                                .filter(c => c.status === "blocked")
+                                .map(c => (
+                                    <p key={c.id}>{c.detail}</p>
+                                ))}
+                            <p>
+                                You can correct your answers above if something was entered
+                                incorrectly.
+                            </p>
+                            <a
+                                href="https://www.judiciary.gov.sg/civil/cases-eligible-small-claim"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                View official eligibility guidance
+                                <ExternalLink size={13} />
+                            </a>
+                        </div>
+                    </div>
+                ) : assessed ? (
+                    <div className="result-card">
+                        <Info size={20} />
+                        <div>
+                            <h3>We need a little more information.</h3>
+                            {checks
+                                .filter(c => c.status === "pending")
+                                .map(c => (
+                                    <p key={c.id}>{c.detail}</p>
+                                ))}
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+            <p className="quiet-note">
+                <RotateCcw size={14} />
+                Your answers are saved. You can leave and return whenever you need.
+            </p>
+        </div>
+    )
 }

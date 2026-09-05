@@ -1,7 +1,7 @@
 minimumReleaseAge: 0
 
 allowBuilds:
-  '@google/genai': false
-  core-js-pure: false
-  esbuild: true
-  protobufjs: false
+    "@google/genai": false
+    core-js-pure: false
+    esbuild: true
+    protobufjs: false

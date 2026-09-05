@@ -1,7 +1,7 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from "node:sqlite"
 
 const migrations = [
-  `
+    `
   CREATE TABLE IF NOT EXISTS schema_migrations (
     version INTEGER PRIMARY KEY,
     applied_at TEXT NOT NULL
@@ -271,38 +271,40 @@ const migrations = [
   CREATE INDEX IF NOT EXISTS snapshots_case_idx ON snapshots(case_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS audit_case_idx ON audit_events(case_id, created_at);
   `,
-];
+]
 
 export function migrate(database: DatabaseSync): void {
-  database.exec(`
+    database.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
     PRAGMA busy_timeout = 5000;
-  `);
+  `)
 
-  database.exec('BEGIN IMMEDIATE');
-  try {
-    database.exec(`
+    database.exec("BEGIN IMMEDIATE")
+    try {
+        database.exec(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
         applied_at TEXT NOT NULL
       ) STRICT;
-    `);
+    `)
 
-    const applied = database.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>;
-    const appliedVersions = new Set(applied.map(({ version }) => version));
+        const applied = database.prepare("SELECT version FROM schema_migrations").all() as Array<{
+            version: number
+        }>
+        const appliedVersions = new Set(applied.map(({ version }) => version))
 
-    migrations.forEach((migration, index) => {
-      const version = index + 1;
-      if (appliedVersions.has(version)) return;
-      database.exec(migration);
-      database
-        .prepare('INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)')
-        .run(version, new Date().toISOString());
-    });
-    database.exec('COMMIT');
-  } catch (error) {
-    database.exec('ROLLBACK');
-    throw error;
-  }
+        migrations.forEach((migration, index) => {
+            const version = index + 1
+            if (appliedVersions.has(version)) return
+            database.exec(migration)
+            database
+                .prepare("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)")
+                .run(version, new Date().toISOString())
+        })
+        database.exec("COMMIT")
+    } catch (error) {
+        database.exec("ROLLBACK")
+        throw error
+    }
 }
