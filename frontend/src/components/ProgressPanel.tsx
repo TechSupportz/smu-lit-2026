@@ -77,10 +77,16 @@ export function ProgressPanel({
     const preparationCount = preparationItems.filter(item => item.done).length
     return (
         <aside
+            id="case-panel"
             className={`progress-panel ${open ? "is-open" : "is-closed"}`}
             aria-label="Your case and progress"
         >
-            <button className="panel-heading" onClick={onToggle} aria-expanded={open}>
+            <button
+                className="panel-heading"
+                onClick={onToggle}
+                aria-expanded={open}
+                aria-controls={open ? "case-panel-content" : undefined}
+            >
                 <span>
                     <span className="panel-dot" />
                     Your case at a glance
@@ -88,7 +94,7 @@ export function ProgressPanel({
                 {open ? <Minus size={17} /> : <PanelRightOpen size={18} />}
             </button>
             {open && (
-                <div className="panel-content">
+                <div className="panel-content" id="case-panel-content">
                     <section>
                         <div className="panel-label">
                             <span>{eligible ? "YOUR CHECKLIST" : "ELIGIBILITY"}</span>

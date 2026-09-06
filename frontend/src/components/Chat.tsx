@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import { useFlueAgent } from "@flue/react"
 import { createFlueClient } from "@flue/sdk"
 import { Markdown, type MarkdownComponents } from "@tanstack/markdown/react"
@@ -10,6 +10,7 @@ import {
     MessageCircle,
     FileText,
     Square,
+    ShieldCheck,
     LoaderCircle,
 } from "lucide-react"
 import {
@@ -21,6 +22,8 @@ import {
 } from "@/lib/backend"
 import { useCase } from "@/lib/store"
 import { saveBlob } from "@/lib/storage"
+import { useAutoGrow } from "@/lib/autogrow"
+import { buildTranscript, isThinking } from "@/lib/chat-view"
 import type { ChatStage } from "@/lib/types"
 import { Button } from "./ui/button"
 import { Textarea } from "./ui/textarea"
@@ -93,6 +96,8 @@ export function Chat({
         go,
         backendCaseId,
         syncBackendCase,
+        transcriptEntries,
+        recordAnsweredQuestions,
     } = useCase()
     const [draft, setDraft] = useState("")
     const [busy, setBusy] = useState(false)
@@ -109,13 +114,43 @@ export function Chat({
     )
     const agent = useFlueAgent({ client })
     const messages = agent.messages.filter(
-        message => message.display === "visible" && !isInitialPrompt(message),
+        message =>
+            message.display === "visible" &&
+            !isInitialPrompt(message) &&
+            message.parts.some(part => part.type === "text" && Boolean(part.text?.trim())),
     )
     const isLoading = agent.status === "submitted" || agent.status === "streaming"
+    // Derived from the raw message list so a hidden control prompt still counts as
+    // a pending turn, and so a submitted turn stays pending even while the previous
+    // turn's reply is still the last message.
+    const thinking = isThinking(agent.status, agent.messages)
+    const openQuestions = questions.filter(question => question.status === "OPEN")
+    const answeredQuestions = questions.filter(
+        question => question.status === "ANSWERED" && question.answer,
+    )
+    const showEligibility = !isPrep && !eligible
+    const transcript = buildTranscript(
+        messages,
+        transcriptEntries,
+        answeredQuestions.map(question => ({
+            id: question.id,
+            question: question.question,
+            answer: question.answer!,
+        })),
+    )
+    const blockers = isPrep
+        ? []
+        : [
+              !details.respondent.trim() && "who you are claiming against",
+              !details.summary.trim() && "a short summary of what happened",
+              !details.outcome.trim() && "the outcome you are asking for",
+              openQuestions.length > 0 && "your answers to the questions above",
+          ].filter((reason): reason is string => typeof reason === "string")
     const inputRef = useRef<HTMLTextAreaElement>(null)
     const uploadRef = useRef<HTMLInputElement>(null)
     const endRef = useRef<HTMLDivElement>(null)
     const initialPromptSent = useRef(false)
+    useAutoGrow(inputRef, draft, 200)
     useEffect(() => {
         if (correctionKey) {
             setDraft("I’d like to correct my case details: ")
@@ -135,6 +170,12 @@ export function Chat({
             initialPromptSent.current
         )
             return
+        // Hydrated history means this case has already received its opening turn.
+        // Do not repeat it on reload, stage remounts, or development hot reload.
+        if (agent.messages.length > 0) {
+            initialPromptSent.current = true
+            return
+        }
         initialPromptSent.current = true
         void getBackendCase(backendCaseId!).then(state => {
             if (state.questions.some(question => question.status === "OPEN")) return
@@ -203,13 +244,18 @@ export function Chat({
     }
 
     async function send() {
-        const message = draft.trim()
+        const outgoing = draft
+        const message = outgoing.trim()
         if (!message || isLoading || isPrep) return
         setDraft("")
+        let sent = false
         try {
             await agent.sendMessage(message)
+            sent = true
             await refreshQuestions()
         } catch (error) {
+            // Give the message back, unless the user has already typed a replacement.
+            if (!sent) setDraft(current => (current === "" ? outgoing : current))
             onError(error instanceof Error ? error.message : "The message could not be sent.")
         }
     }
@@ -217,11 +263,28 @@ export function Chat({
     async function submitGrill(questionAnswers: Record<string, string>) {
         if (!backendCaseId) return
         setBusy(true)
+        // The answers belong after everything the user can currently see, so the
+        // reply to the hidden control prompt reads as a response to them.
+        const afterMessageId = messages[messages.length - 1]?.id ?? null
+        const asked = new Map(openQuestions.map(question => [question.id, question.question]))
         try {
             let state = await getBackendCase(backendCaseId)
+            const recorded: Array<{
+                questionId: string
+                question: string
+                answer: string
+                afterMessageId: string | null
+            }> = []
             for (const [questionId, answer] of Object.entries(questionAnswers)) {
                 state = await answerBackendQuestion(backendCaseId, questionId, answer)
+                recorded.push({
+                    questionId,
+                    question: asked.get(questionId) ?? "",
+                    answer,
+                    afterMessageId,
+                })
             }
+            recordAnsweredQuestions(recorded)
             syncBackendCase(state)
             setQuestions(state.questions)
             await agent.sendMessage(
@@ -252,8 +315,16 @@ export function Chat({
     return (
         <div className="stage-content chat-content">
             <div className="stage-eyebrow">
-                {isPrep ? <FileText size={16} /> : <MessageCircle size={16} />}{" "}
-                {isPrep ? "STEP 3 · PREPARE YOUR CASE" : "STEP 1 · PREPARE YOUR CLAIM"}
+                {isPrep ? <FileText size={16} /> : showEligibility ? (
+                    <ShieldCheck size={16} />
+                ) : (
+                    <MessageCircle size={16} />
+                )}{" "}
+                {isPrep
+                    ? "STEP 3 · PREPARE YOUR CASE"
+                    : showEligibility
+                      ? "STEP 1 · CHECK WHERE YOU STAND"
+                      : "STEP 1 · PREPARE YOUR CLAIM"}
             </div>
             <h1>
                 {isPrep ? (
@@ -261,6 +332,12 @@ export function Chat({
                         Your story.
                         <br />
                         Ready for the next chapter.
+                    </>
+                ) : showEligibility ? (
+                    <>
+                        First, let’s check
+                        <br />
+                        where you stand.
                     </>
                 ) : (
                     <>
@@ -273,71 +350,108 @@ export function Chat({
             <p className="stage-description">
                 {isPrep
                     ? "Turn your case details and supporting documents into a practical pack for your tribunal consultation."
-                    : "We’ll gather the details, one piece at a time. No legal language needed."}
+                    : showEligibility
+                      ? "A few short questions tell us whether the Small Claims Tribunals can hear your claim. We’ll start on your story straight afterwards."
+                      : "We’ll gather the details, one piece at a time. No legal language needed."}
             </p>
-            <div className="conversation" aria-label="Conversation">
-                {!isPrep && !eligible ? (
+            <div className="conversation">
+                {showEligibility ? (
                     <Eligibility embedded onError={onError} />
                 ) : (
                     <>
-                        <div className="assistant-intro">
-                            <span className="assistant-avatar">
-                                <MessageCircle size={18} />
-                            </span>
-                            <div>
-                                <strong>ClaimGuide</strong>
-                                <p>
-                                    {isPrep
-                                        ? "When you’re ready, we’ll create a cue card for the consultation and one PDF stack containing your pre-filing summary and evidence."
-                                        : "Start with who you’re claiming against and what happened. You can add receipts, messages, or other supporting documents along the way."}
-                                </p>
+                        {/* Only the message stream is a live region: the eligibility form
+                            and the questionnaire own their own announcements. */}
+                        <div
+                            className="message-stream"
+                            aria-label="Conversation"
+                            role="log"
+                            aria-live="polite"
+                            aria-relevant="additions text"
+                        >
+                            <div className="assistant-intro">
+                                <span className="assistant-avatar">
+                                    <MessageCircle size={18} />
+                                </span>
+                                <div>
+                                    <strong>ClaimGuide</strong>
+                                    <p>
+                                        {isPrep
+                                            ? "When you’re ready, we’ll create a cue card for the consultation and one PDF stack containing your pre-filing summary and evidence."
+                                            : "Start with who you’re claiming against and what happened. You can add receipts, messages, or other supporting documents along the way."}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                        {messages.map(message => (
-                            <div
-                                className={`message ${message.role === "user" ? "user-message" : "assistant-message"}`}
-                                key={message.id}
-                            >
-                                {message.role !== "user" && (
+                            {transcript.map(item =>
+                                item.kind === "message" ? (
+                                    <div
+                                        className={`message ${item.message.role === "user" ? "user-message" : "assistant-message"}`}
+                                        key={item.key}
+                                    >
+                                        {item.message.role !== "user" && (
+                                            <span className="assistant-avatar">
+                                                <MessageCircle size={16} />
+                                            </span>
+                                        )}
+                                        <div>
+                                            {item.message.parts.map((part, index) =>
+                                                part.type === "text" ? (
+                                                    item.message.role === "user" ? (
+                                                        <p key={index}>{part.text}</p>
+                                                    ) : (
+                                                        <MarkdownMessage
+                                                            key={index}
+                                                            text={part.text}
+                                                            streaming={part.state === "streaming"}
+                                                        />
+                                                    )
+                                                ) : null,
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Fragment key={item.key}>
+                                        <div className="message assistant-message answered-question">
+                                            <span className="assistant-avatar">
+                                                <MessageCircle size={16} />
+                                            </span>
+                                            <div>
+                                                <small>Questionnaire</small>
+                                                <p>{item.question}</p>
+                                            </div>
+                                        </div>
+                                        <div className="message user-message answered-answer">
+                                            <div>
+                                                <p>{item.answer}</p>
+                                            </div>
+                                        </div>
+                                    </Fragment>
+                                ),
+                            )}
+                            {thinking && (
+                                <div className="message assistant-message thinking-message">
                                     <span className="assistant-avatar">
                                         <MessageCircle size={16} />
                                     </span>
-                                )}
-                                <div>
-                                    {message.parts.map((part, index) =>
-                                        part.type === "text" ? (
-                                            message.role === "user" ? (
-                                                <p key={index}>{part.text}</p>
-                                            ) : (
-                                                <MarkdownMessage
-                                                    key={index}
-                                                    text={part.text}
-                                                    streaming={part.state === "streaming"}
-                                                />
-                                            )
-                                        ) : null,
-                                    )}
+                                    <div>
+                                        <span className="thinking-dots" aria-hidden="true">
+                                            <i />
+                                            <i />
+                                            <i />
+                                        </span>
+                                        <span>ClaimGuide is thinking</span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                        {isLoading && (
-                            <span className="stream-indicator" role="status">
-                                <i />
-                                <i />
-                                <i />
-                                ClaimGuide is responding
-                            </span>
-                        )}
-                        {agent.status === "error" && (
-                            <div className="inline-error" role="alert">
-                                {agent.error?.message ??
-                                    "The response was interrupted. Your admitted messages remain on the backend."}
-                            </div>
-                        )}
-                        {!isPrep && questions.some(question => question.status === "OPEN") && (
+                            )}
+                            {agent.status === "error" && (
+                                <div className="inline-error" role="alert">
+                                    {agent.error?.message ??
+                                        "The response was interrupted. Your admitted messages remain on the backend."}
+                                </div>
+                            )}
+                        </div>
+                        {!isPrep && openQuestions.length > 0 && (
                             <GrillQuestionnaire
-                                key={questions.filter(question => question.status === "OPEN").map(question => question.id).join(":")}
-                                questions={questions.filter(question => question.status === "OPEN")}
+                                questions={openQuestions}
                                 busy={busy || isLoading}
                                 onSubmit={submitGrill}
                             />
@@ -462,18 +576,20 @@ export function Chat({
                                 ? "Create a cue card and a single PDF containing the documents you’ve gathered."
                                 : "Create a backend-generated pre-filing summary, then review the external filing checklist."}
                         </p>
+                        {blockers.length > 0 && (
+                            <div className="stage-action-reason" id="prepare-blockers">
+                                Before we can prepare this, we still need:
+                                <ul>
+                                    {blockers.map(reason => (
+                                        <li key={reason}>{reason}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                     <Button
-                        disabled={
-                            busy ||
-                            isLoading ||
-                            uploading ||
-                            (!isPrep &&
-                                (!details.summary.trim() ||
-                                    !details.respondent.trim() ||
-                                    !details.outcome.trim() ||
-                                    questions.some(question => question.status === "OPEN")))
-                        }
+                        aria-describedby={blockers.length > 0 ? "prepare-blockers" : undefined}
+                        disabled={busy || isLoading || uploading || blockers.length > 0}
                         onClick={() => void finish()}
                     >
                         {busy ? (

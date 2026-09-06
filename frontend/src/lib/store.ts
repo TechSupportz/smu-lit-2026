@@ -14,6 +14,7 @@ import {
     frontendChecks,
     type BackendCaseState,
 } from "./backend"
+import { dedupeEntries, type TranscriptEntry, type TranscriptEntryInput } from "./chat-view"
 const makeKey = () =>
     globalThis.crypto?.randomUUID?.() ?? `case-${Date.now()}-${Math.random().toString(36).slice(2)}`
 const defaults = () => ({
@@ -32,6 +33,8 @@ const defaults = () => ({
     checklist: [] as string[],
     grillStarted: false,
     grillComplete: false,
+    // Durable record of questionnaire answers and where they belong in the transcript.
+    transcriptEntries: [] as TranscriptEntry[],
     consultationDate: "",
     backendCaseId: null as string | null,
     backendCreateKey: makeKey(),
@@ -54,6 +57,7 @@ type CaseState = ReturnType<typeof defaults> & {
     removeFile: (id: string) => void
     toggleItem: (id: string) => void
     setGrillProgress: (started: boolean, complete: boolean) => void
+    recordAnsweredQuestions: (entries: TranscriptEntryInput[]) => void
     setConsultationDate: (date: string) => void
     reset: () => void
 }
@@ -248,6 +252,18 @@ export const useCase = create<CaseState>()(
                 })),
             setGrillProgress: (grillStarted, grillComplete) =>
                 set({ grillStarted, grillComplete, ...stamp() }),
+            recordAnsweredQuestions: entries =>
+                set(s => {
+                    const known = new Set(s.transcriptEntries.map(entry => entry.questionId))
+                    const added = dedupeEntries(entries)
+                        .filter(entry => !known.has(entry.questionId))
+                        .map(entry => ({ ...entry, at: new Date().toISOString() }))
+                    if (added.length === 0) return s
+                    return {
+                        transcriptEntries: [...s.transcriptEntries, ...added],
+                        ...stamp(),
+                    }
+                }),
             setConsultationDate: consultationDate => set({ consultationDate, ...stamp() }),
             reset: () => set(defaults()),
         }),
@@ -265,6 +281,9 @@ export const useCase = create<CaseState>()(
                 return {
                     ...current,
                     ...saved,
+                    transcriptEntries: Array.isArray(saved.transcriptEntries)
+                        ? saved.transcriptEntries
+                        : [],
                     files: (saved.files ?? []).map(f =>
                         f.status === "generating"
                             ? {

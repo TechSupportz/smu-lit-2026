@@ -213,10 +213,11 @@ export function Eligibility({
                     <div className="result-card success">
                         <ShieldCheck size={22} />
                         <div>
-                            <h3>These details pass the backend checks.</h3>
+                            <h3>This looks like a fit for the Small Claims Tribunals.</h3>
                             <p>
-                                You can move on to preparing your claim. You’ll still complete the
-                                official CJTS assessment before filing.
+                                Every check passed, so you can move on to preparing your claim.
+                                You’ll still complete the court’s official pre-filing assessment in
+                                CJTS before you file.
                             </p>
                             {!embedded && (
                                 <Button onClick={() => go("filing")}>
@@ -230,15 +231,16 @@ export function Eligibility({
                     <div className="result-card blocked">
                         <Info size={22} />
                         <div>
-                            <h3>This claim can’t proceed in this flow.</h3>
+                            <h3>This claim doesn’t look like a fit for these tribunals.</h3>
                             {checks
-                                .filter(c => c.status === "blocked")
+                                .filter(c => c.status === "blocked" && c.detail)
                                 .map(c => (
                                     <p key={c.id}>{c.detail}</p>
                                 ))}
                             <p>
-                                You can correct your answers above if something was entered
-                                incorrectly.
+                                If something above was entered incorrectly, change it and check
+                                again. Otherwise, the official guidance explains the other options
+                                open to you.
                             </p>
                             <a
                                 href="https://www.judiciary.gov.sg/civil/cases-eligible-small-claim"
@@ -255,11 +257,16 @@ export function Eligibility({
                         <Info size={20} />
                         <div>
                             <h3>We need a little more information.</h3>
-                            {checks
-                                .filter(c => c.status === "pending")
-                                .map(c => (
-                                    <p key={c.id}>{c.detail}</p>
-                                ))}
+                            {checks.some(c => c.status === "pending" && c.detail) ? (
+                                checks
+                                    .filter(c => c.status === "pending" && c.detail)
+                                    .map(c => <p key={c.id}>{c.detail}</p>)
+                            ) : (
+                                <p>
+                                    Some of these answers could not be confirmed yet. Review the
+                                    details above and check again.
+                                </p>
+                            )}
                         </div>
                     </div>
                 ) : null}
