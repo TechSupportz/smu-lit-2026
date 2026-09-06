@@ -53,6 +53,53 @@ So we asked: how can we make GenAI a more responsible and useful preparation too
 
 ---
 
+<div class="scenario-head">
+  <div>
+    <div class="kicker">The scenario · anonymised SCT facts</div>
+    <h1>Imagine this was<br>your grandmother.</h1>
+    <p class="lede">An elderly Mandarin-speaking woman sees “<strong>S&#36;30 haircut for women</strong>”—and says she was pressured into an upgraded package.</p>
+  </div>
+  <div class="scenario-badge">Toa Payoh · 23 Oct 2025</div>
+</div>
+
+<div class="scenario-grid">
+  <section class="scenario-profile">
+    <div class="scenario-profile-label">The claimant</div>
+    <h2>She was Chinese-educated, spoke primarily Mandarin and understood very little English.</h2>
+    <div class="scenario-profile-facts">
+      <span><b>Purpose</b> Obtain a simple haircut</span>
+      <span><b>Setting</b> A neighbourhood outlet in Toa Payoh</span>
+      <span><b>Her account</b> She felt “pressured”, “frightened” and “afraid”</span>
+    </div>
+  </section>
+
+  <div class="scenario-story">
+    <div class="scenario-timeline">
+      <article class="scenario-step"><span>01</span><h3>What she expected</h3><p>A simple women’s haircut advertised at S&#36;30.</p></article>
+      <article class="scenario-step"><span>02</span><h3>What she was told</h3><p>The consultants initially represented that a basic haircut package would cost S&#36;30.</p></article>
+      <article class="scenario-step"><span>03</span><h3>What she was charged</h3><p>After the service, the store charged S&#36;100 for an upgraded haircut, hairwash and treatment package.</p></article>
+      <article class="scenario-step"><span>04</span><h3>What happened next</h3><p>Her daughter said she had been “scammed”. She sought a refund the next day, then approached the police, CASE and the SCT.</p></article>
+    </div>
+    <div class="scenario-outcome"><strong>The question</strong><span>How do we translate “I was pressured” into a cause of action?</span></div>
+  </div>
+</div>
+
+<DeckFooter page="02" />
+
+<!--
+To make the problem concrete, imagine this claimant was your own grandmother.
+
+She was elderly and Chinese-educated, spoke primarily Mandarin and understood very little English. On 23 October 2025, she visited a neighbourhood outlet in Toa Payoh for a simple haircut after seeing a sign advertising a thirty-dollar women’s haircut.
+
+The consultants initially represented that a basic haircut package would cost twenty dollars. After the service, however, she was charged one hundred dollars for an upgraded package comprising a haircut, hairwash and hair treatment.
+
+At home, her daughter told her she had been scammed. She returned the next day to seek a refund and, when no agreement was reached, approached the police, CASE and eventually the SCT.
+
+Her position was that she had felt pressured, frightened and afraid during the sales process. That gives Andrea an important starting question: what facts and evidence support that conclusion?
+-->
+
+---
+
 <div class="intro-grid">
   <div class="intro-copy">
     <div class="wordmark"><span class="wordmark-mark">A</span> Andrea</div>
@@ -71,11 +118,14 @@ So we asked: how can we make GenAI a more responsible and useful preparation too
   </div>
 
   <div class="intro-visual">
-    <ScreenshotPlaceholder label="STARTING THE JOURNEY" description="Andrea landing screen showing the common claim categories and the ‘Let’s work it out’ call to action" />
+    <div class="screenshot-shell">
+      <div class="screenshot-chrome"><span></span><span></span><span></span><div>andrea · start a claim</div></div>
+      <div class="app-screenshot landing-screenshot" role="img" aria-label="Andrea landing screen showing the common claim categories and the Let's work it out call to action"></div>
+    </div>
   </div>
 </div>
 
-<DeckFooter page="02" />
+<DeckFooter page="03" />
 
 <!--
 Our solution is Andrea, an AI harness designed to help SRPs prepare for the SCT.
@@ -133,7 +183,7 @@ But to make this responsible, Andrea has three key guardrails: grounded, proport
   </section>
 </div>
 
-<DeckFooter page="03" />
+<DeckFooter page="04" />
 
 <!--
 Andrea's first guardrail is groundedness. It prioritises authoritative information, such as official SCT and CPFTA sources, together with the evidence provided by the user.
@@ -159,15 +209,19 @@ And importantly: “When the system doesn't know, it doesn't guess.” Collectiv
       <div class="fact-question"><span>3</span>What were you told?</div>
       <div class="fact-question"><span>4</span>What exactly made you feel pressured?</div>
     </div>
+    <p class="fact-note">* This list is non exhaustive and adaptable to various factual matrices.</p>
   </div>
 
   <div class="facts-visual">
-    <ScreenshotPlaceholder label="GUIDED CLARIFICATION" description="Questionnaire or chat screen after the user says ‘I was pressured into buying this’, showing Andrea’s specific follow-up questions" />
+    <div class="screenshot-shell">
+      <div class="screenshot-chrome"><span></span><span></span><span></span><div>andrea · guided clarification</div></div>
+      <div class="app-screenshot clarification-screenshot" role="img" aria-label="Andrea conversation clarifying the claimant and business details, checking uploaded evidence, and asking for missing information"></div>
+    </div>
     <p class="caption">Broad conclusions become specific, examinable facts.</p>
   </div>
 </div>
 
-<DeckFooter page="04" />
+<DeckFooter page="05" />
 
 <!--
 The guardrails become particularly important when dealing with a user's own conclusions.
@@ -217,7 +271,7 @@ This helps turn a broad statement like “I was scammed” into specific facts t
 
 <p class="bias-caption">A reality-check against assumptions—not an argument generator.</p>
 
-<DeckFooter page="05" />
+<DeckFooter page="06" />
 
 <!--
 Andrea also helps address confirmation bias by testing both sides of the case.
@@ -251,12 +305,15 @@ So Andrea is not simply trying to prove the user's story. It helps the user unde
   </div>
 
   <div class="core-visual">
-    <ScreenshotPlaceholder label="THE PREPARATION OUTPUT" description="Final preparation-pack screen showing the reviewed summary, cue card, organised evidence files and downloadable tribunal stack" />
+    <div class="screenshot-shell">
+      <div class="screenshot-chrome"><span></span><span></span><span></span><div>andrea · court-day pack</div></div>
+      <div class="app-screenshot preparation-screenshot" role="img" aria-label="Andrea court-day pack with a downloadable tribunal stack, cue card, pre-filing form, evidence files and filing checklist"></div>
+    </div>
     <div class="visual-tag">Confusing experience → clear next step</div>
   </div>
 </div>
 
-<DeckFooter page="06" />
+<DeckFooter page="07" />
 
 <!--
 Ultimately, Andrea is based on a simple shift. We want to move from: “Tell AI my problem.” to: “Help AI identify my relevant facts.”
@@ -274,49 +331,39 @@ class: ecosystem-slide
 
 <div class="kicker">Additional context · open access</div>
 <h1>Ground any AI. Make Andrea available anywhere.</h1>
-<p class="lede">A small public grounding layer and a reusable service boundary can bring the same SCT preparation approach into any AI application.</p>
+<p class="lede">Official SCT context for the model. Andrea’s guided workflow for the person.</p>
 
-<div class="ecosystem-map">
-  <section class="eco-card">
-    <div class="eco-eyebrow">Official public context</div>
-    <h2>MinLaw / justice website</h2>
-    <p>A proposed <strong>llms.txt</strong> points agents to the right SCT pages, definitions and process information.</p>
-    <div class="code-chip">/llms.txt</div>
-    <div class="eco-list"><span>Clear source map</span><span>Specific SCT context</span><span>Human pages stay canonical</span></div>
+<div class="ecosystem-proof-grid">
+  <section class="llms-card">
+    <div class="eco-eyebrow">Illustrative public file</div>
+    <div class="llms-title-row"><h2>/llms.txt</h2><a href="https://www.judiciary.gov.sg/civil/file-small-claim" target="_blank" rel="noopener noreferrer">Placed on judiciary.gov.sg/civil/file-small-claim/llms.txt ↗</a></div>
+    <p class="llms-intro">A short source map points AI agents to current, human-readable SCT guidance.</p>
+    <pre class="llms-code"><code># Small Claims Tribunals&#10;&gt; Official guidance for SCT claims in Singapore.&#10;&#10;## Official source&#10;- [File a small claim](https://www.judiciary.gov.sg/civil/file-small-claim)&#10;&#10;## Agent guidance&#10;Use this official page as the canonical source.&#10;Ask for missing facts. Do not predict outcomes.</code></pre>
   </section>
 
-  <div class="eco-arrow">→</div>
-
-  <section class="eco-card center-card">
-    <div class="eco-eyebrow">Andrea as a reusable service</div>
-    <h2>Remote MCP server</h2>
-    <p>The guided questionnaire, evidence workflow and preparation outputs are exposed through a consistent tool interface.</p>
-    <div class="code-chip">create · continue · add evidence · prepare</div>
-    <div class="eco-list"><span>Existing backend remains the case authority</span><span>Guardrails travel with the workflow</span><span>Confirmation before consequential actions</span></div>
-  </section>
-
-  <div class="eco-arrow">→</div>
-
-  <section class="eco-card">
-    <div class="eco-eyebrow">Use it from</div>
-    <h2>Any AI application</h2>
-    <p>People can access the same responsible preparation journey from the assistant they already use.</p>
-    <div class="eco-list"><span>ChatGPT</span><span>Claude or other MCP clients</span><span>Future public-service assistants</span></div>
+  <section class="mcp-proof-card">
+    <div class="mcp-proof-head">
+      <div><div class="eco-eyebrow">Andrea inside the assistant people already use</div><h2>ChatGPT + remote MCP</h2></div>
+      <span class="connected-pill">CONNECTED</span>
+    </div>
+    <div class="app-screenshot chatgpt-full-screenshot" role="img" aria-label="ChatGPT using the small claims MCP to record the claimant's account and ask the next grounded follow-up question"></div>
   </section>
 </div>
 
-<p class="eco-foot">Proposed ecosystem: llms.txt helps agents find authoritative public context; Andrea’s MCP provides the interactive case-preparation workflow.</p>
+<div class="ecosystem-service-bar">
+  <div><span>REMOTE MCP SERVER</span><strong>One guarded workflow, available from any compatible AI application.</strong></div>
+</div>
 
-<DeckFooter page="07" inverse />
+<DeckFooter page="08" inverse />
 
 <!--
 Andrea can extend beyond one interface.
 
-First, an llms.txt file on an official MinLaw or justice-domain website could point AI agents towards the right Small Claims Tribunal context and pages. It is a source map, not a replacement for the official human-readable content.
+First, an llms.txt file on an official MinLaw or justice-domain website could point AI agents towards the right Small Claims Tribunal context and pages. The sample on the left shows how it could identify the key starting points and instruct agents to treat the official pages as canonical. It is a source map, not a replacement for the official human-readable content.
 
 Second, the back-and-forth questionnaire and evidence workflow can be exposed as a remote MCP server. The existing backend remains the authority for case state, while the guardrails travel with the workflow.
 
-That means people could use Andrea through the AI application they already use, without reducing the system to a generic chatbot prompt.
+The ChatGPT screenshot on the right shows the small claims MCP recording the claimant's account, preserving uncertainty and asking the next grounded follow-up question. That means people could use Andrea through the AI application they already use, without reducing the system to a generic chatbot prompt.
 -->
 
 ---
@@ -363,7 +410,7 @@ class: bento-slide
   </section>
 </div>
 
-<DeckFooter page="08" />
+<DeckFooter page="09" />
 
 <!--
 Andrea is designed around the person behind the claim.
