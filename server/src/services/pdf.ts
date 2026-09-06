@@ -28,6 +28,11 @@ export interface PdfCompilationResult {
     pdfHeaderValid: true
 }
 
+export interface CompiledPdf {
+    snapshot: SnapshotRecord
+    bytes: Buffer
+}
+
 export class PdfService {
     private readonly projectRoot = process.cwd()
     private readonly templatePath = resolve(process.cwd(), "skills/typst/case-summary.typ")
@@ -128,6 +133,21 @@ export class PdfService {
                 )
             }
         })
+    }
+
+    async readCompiled(caseId: string, snapshotId: string): Promise<CompiledPdf> {
+        const snapshot = this.store.getSnapshot(caseId, snapshotId)
+        if (!snapshot.pdfPath || !snapshot.pdfSha256) {
+            throw new ProcessingError("The snapshot PDF has not been compiled.")
+        }
+        if (!inside(this.appConfig.snapshotDir, snapshot.pdfPath)) {
+            throw new ProcessingError("Snapshot PDF path escaped its workspace.")
+        }
+        const bytes = await readFile(snapshot.pdfPath)
+        if (sha256(bytes) !== snapshot.pdfSha256 || bytes.subarray(0, 5).toString() !== "%PDF-") {
+            throw new ProcessingError("Snapshot PDF failed its integrity check.")
+        }
+        return { snapshot, bytes }
     }
 
     private async pageCount(path: string): Promise<number> {
