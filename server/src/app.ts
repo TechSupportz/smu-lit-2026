@@ -6,6 +6,7 @@ import { createAgentRouter } from "@flue/runtime/routing"
 import { Hono, type Context } from "hono"
 import * as v from "valibot"
 import { SCTPreFilingAgent } from "./agents/sct-prefiling-agent.js"
+import { configureAgentProvider } from "./agents/provider.js"
 import {
     AcknowledgeWarningInputSchema,
     CreateCaseInputSchema,
@@ -29,6 +30,10 @@ import {
     snapshotService,
 } from "./runtime.js"
 import { config } from "./config.js"
+
+// Flip this one switch to use the live OpenRouter-backed agent again.
+export const MOCK_DATA_MODE = true
+configureAgentProvider(MOCK_DATA_MODE)
 
 const RevisionSchema = v.pipe(v.number(), v.integer(), v.minValue(1))
 const TextSchema = v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(20_000))
@@ -243,7 +248,7 @@ app.onError((error, context) => {
     )
 })
 
-app.get("/health", context => context.json({ status: "ok" }))
+app.get("/health", context => context.json({ status: "ok", mockDataMode: MOCK_DATA_MODE }))
 
 app.get("/cases", context => context.json({ cases: caseStore.listCases() }))
 

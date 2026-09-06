@@ -14,7 +14,9 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-The default server is `http://127.0.0.1:3000`. `OPENCODE_GO_KEY` enables the main agent through OpenRouter, and `OPENROUTER_API_KEY` enables evidence extraction. The rest of the case API, local persistence, snapshots, and PDF compilation work without provider credentials.
+The default server is `http://127.0.0.1:3000`. The checked-in `MOCK_DATA_MODE` switch near the top of `src/app.ts` defaults to `true`, so local chat uses a scripted Flue provider without sending requests to OpenRouter. Set it to `false` to restore the live agent. `GET /health` reports the active mode. In live mode, `OPENCODE_GO_KEY` enables the main agent through OpenRouter, and `OPENROUTER_API_KEY` enables evidence extraction. The rest of the case API, local persistence, snapshots, and PDF compilation work without provider credentials.
+
+Mock mode preserves the live agent router, streaming protocol, history and case tools. Ordinary messages rotate through short intake replies. The frontend fixture list in `frontend/src/lib/mock-scenarios.ts` supplies repeatable message series; special prefixes exercise questionnaire, long Markdown, warning and error states.
 
 ```sh
 pnpm typecheck

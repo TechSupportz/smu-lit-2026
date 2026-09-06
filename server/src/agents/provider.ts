@@ -1,12 +1,14 @@
 import { openrouterProvider } from "@earendil-works/pi-ai/providers/openrouter"
 import { setProvider } from "@flue/runtime"
 import { config } from "../config.js"
+import { createMockAgentProvider, mockModelSpecifier } from "./mock-provider.js"
 
-let configured = false
+let liveConfigured = false
+let modelSpecifier = `openrouter/${config.openCodeGoModel}`
 
 export function configureOpenRouterProvider(): void {
-    if (configured) return
-    configured = true
+    if (liveConfigured) return
+    liveConfigured = true
 
     const base = openrouterProvider()
     const baseApiKey = base.auth.apiKey
@@ -49,4 +51,18 @@ export function configureOpenRouterProvider(): void {
         },
     }
     setProvider(provider)
+}
+
+export function configureAgentProvider(mockDataMode: boolean): void {
+    if (mockDataMode) {
+        setProvider(createMockAgentProvider())
+        modelSpecifier = mockModelSpecifier
+        return
+    }
+    configureOpenRouterProvider()
+    modelSpecifier = `openrouter/${config.openCodeGoModel}`
+}
+
+export function getAgentModelSpecifier(): string {
+    return modelSpecifier
 }

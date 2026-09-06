@@ -3,15 +3,14 @@
 import { useInstruction, useModel, useResponseStart, useSkill } from "@flue/runtime"
 import typstSkill from "../../skills/typst/SKILL.md"
 import claimInterviewInstructions from "../../.context/describe-your-claim-agent-instructions.md"
-import { config } from "../config.js"
 import { caseStore } from "../runtime.js"
-import { configureOpenRouterProvider } from "./provider.js"
+import { configureAgentProvider, getAgentModelSpecifier } from "./provider.js"
 import { useSctTools } from "./tools.js"
 
-configureOpenRouterProvider()
+configureAgentProvider(false)
 
 export function SCTPreFilingAgent({ id }: { id: string }) {
-    useModel(`openrouter/${config.openCodeGoModel}`, {
+    useModel(getAgentModelSpecifier(), {
         thinkingLevel: "high",
         compaction: { keepRecentTokens: 16_000, reserveTokens: 30_000 },
     })
