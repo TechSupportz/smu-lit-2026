@@ -1,5 +1,5 @@
 export type MockConversationScenario = {
-    id: "standard" | "questionnaire" | "long" | "warning" | "error"
+    id: "haircut" | "standard" | "questionnaire" | "long" | "warning" | "error"
     title: string
     purpose: string
     messages: readonly string[]
@@ -11,6 +11,14 @@ export type MockConversationScenario = {
  * repeatable default response cycle.
  */
 export const MOCK_CONVERSATION_SCENARIOS: readonly MockConversationScenario[] = [
+    {
+        id: "haircut",
+        title: "Haircut package demo",
+        purpose: "Narration for the deterministic seeded case and its generated PDFs.",
+        messages: [
+            "I went to a salon in Toa Payoh on 23 October 2025 for a simple haircut. I saw a women's haircut advertised at $30. The staff first said a basic haircut would cost $20, but after the service they charged me $100 for a haircut, wash and treatment. I mainly speak Mandarin and understand very little English. I felt pressured, frightened and afraid. I returned the next day for a refund, but we could not agree. I later made a police report, complained to CASE, and filed an SCT claim. I want my $100 refunded.",
+        ],
+    },
     {
         id: "standard",
         title: "Standard intake",

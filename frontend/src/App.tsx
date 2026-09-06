@@ -18,15 +18,23 @@ import { ProgressPanel } from "./components/ProgressPanel"
 import { useCase } from "./lib/store"
 import {
     BackendError,
-    createBackendPdf,
     deleteBackendCase,
-    generateCasePrep,
     getBackendCase,
+    getBackendSnapshotPdf,
+    getCasePrep,
 } from "./lib/backend"
 import { teardownCase, type TeardownResult } from "./lib/lifecycle"
 import { removeBlob, saveBlob } from "./lib/storage"
 import type { Stage } from "./lib/types"
 type Confirmation = { mode: "clear" } | { mode: "new"; category?: string }
+// sendMessage acknowledges submission before a durable Flue turn necessarily
+// finishes. Poll only for a newly persisted artifact, allowing real model/tool
+// latency while keeping the UI fail-closed if no backend output appears.
+const generationPollDelayMs = 500
+const generationPollAttempts = 120
+
+const wait = (milliseconds: number) =>
+    new Promise<void>(resolve => window.setTimeout(resolve, milliseconds))
 
 export default function App() {
     const {
@@ -35,7 +43,6 @@ export default function App() {
         start,
         started,
         files,
-        addFile,
         updateFile,
         reset,
         backendCaseId,
@@ -83,14 +90,27 @@ export default function App() {
                 )
             })
     }, [backendCaseId, syncBackendCase])
-    async function generate(kind: "filing" | "case-prep") {
+    async function generate(
+        kind: "filing" | "case-prep",
+        baseline: { snapshotIds: string[]; casePrepFilename: string | null },
+    ) {
         if (kind === "case-prep") {
             if (!backendCaseId)
                 throw new Error("Run the eligibility check before preparing your case.")
             try {
-                const bundle = await generateCasePrep(backendCaseId)
-                setCasePrep(bundle)
-                return true
+                for (let attempt = 0; attempt < generationPollAttempts; attempt += 1) {
+                    try {
+                        const bundle = await getCasePrep(backendCaseId)
+                        if (bundle.cueCard.filename !== baseline.casePrepFilename) {
+                            setCasePrep(bundle)
+                            return true
+                        }
+                    } catch (error) {
+                        if (!(error instanceof BackendError) || error.status < 400) throw error
+                    }
+                    await wait(generationPollDelayMs)
+                }
+                throw new Error("The Flue agent did not produce a new case pack.")
             } catch (error) {
                 const message =
                     error instanceof Error
@@ -100,29 +120,40 @@ export default function App() {
                 return false
             }
         }
-        const id = crypto.randomUUID()
-        addFile({
-            id,
-            name: "pre-filing-summary.pdf",
-            size: 0,
-            kind: "generated",
-            status: "generating",
-            backendStored: kind === "filing",
-        })
         try {
             if (!backendCaseId)
                 throw new Error("Run the eligibility check before preparing the filing summary.")
-            const result = await createBackendPdf(backendCaseId)
-            await saveBlob(id, result.blob)
-            updateFile(id, { name: result.filename, size: result.blob.size, status: "ready" })
-            if (result.state) syncBackendCase(result.state)
+            let state = await getBackendCase(backendCaseId)
+            let snapshot = state.snapshots.find(
+                item => item.pdfSha256 && !baseline.snapshotIds.includes(item.id),
+            )
+            for (
+                let attempt = 0;
+                !snapshot && attempt < generationPollAttempts;
+                attempt += 1
+            ) {
+                await wait(generationPollDelayMs)
+                state = await getBackendCase(backendCaseId)
+                snapshot = state.snapshots.find(
+                    item => item.pdfSha256 && !baseline.snapshotIds.includes(item.id),
+                )
+            }
+            if (!snapshot) throw new Error("The Flue agent did not produce a new filing PDF.")
+            syncBackendCase(state)
+            const id = `snapshot:${snapshot.id}`
+            const blob = await getBackendSnapshotPdf(backendCaseId, snapshot.id)
+            await saveBlob(id, blob)
+            updateFile(id, {
+                name: `${snapshot.basename}.pdf`,
+                size: blob.size,
+                status: "ready",
+            })
             return true
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
                     : "Could not prepare this PDF. Please try again."
-            updateFile(id, { status: "failed", error: message })
             setError(message)
             return false
         }
@@ -187,12 +218,12 @@ export default function App() {
                 <button
                     className="brand"
                     onClick={() => go("landing")}
-                    aria-label="ClaimGuide home"
+                    aria-label="Andrea home"
                 >
                     <span className="brand-mark">
                         <Landmark size={22} />
                     </span>
-                    ClaimGuide<span className="brand-period">.</span>
+                    Andrea<span className="brand-period">.</span>
                 </button>
                 <nav aria-label="Main navigation">
                     {stage === "landing" ? (
@@ -364,7 +395,7 @@ export default function App() {
             )}
             <footer className="site-footer">
                 <div>
-                    <span className="footer-brand">ClaimGuide.</span>
+                    <span className="footer-brand">Andrea.</span>
                     <p>
                         An independent preparation tool. Not affiliated with the Singapore Courts.
                         <br />
@@ -449,9 +480,9 @@ export default function App() {
                     <span className="help-icon">
                         <ShieldCheck size={25} />
                     </span>
-                    <DialogTitle>A little clarity about ClaimGuide</DialogTitle>
+                    <DialogTitle>A little clarity about Andrea</DialogTitle>
                     <DialogDescription>
-                        ClaimGuide is an independent internal demo for individual claimants
+                        Andrea is an independent internal demo for individual claimants
                         preparing for the Small Claims Tribunals.
                     </DialogDescription>
                     <div className="help-copy">

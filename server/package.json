@@ -10,6 +10,9 @@
     },
     "scripts": {
         "dev": "vite dev",
+        "dev:prefilled": "PREFILLED=true DATA_DIR=./data/prefilled FLUE_DB_PATH=./data/prefilled/flue.db CASE_DB_PATH=./data/prefilled/cases.db EVIDENCE_DIR=./data/prefilled/evidence SNAPSHOT_DIR=./data/prefilled/snapshots vite dev",
+        "dev:demo": "MOCK_DATA_MODE=true PREFILLED=true DATA_DIR=./data/demo FLUE_DB_PATH=./data/demo/flue.db CASE_DB_PATH=./data/demo/cases.db EVIDENCE_DIR=./data/demo/evidence SNAPSHOT_DIR=./data/demo/snapshots vite dev",
+        "prefilled:seed": "node scripts/seed-haircut-prefilled.mjs",
         "build": "vite build",
         "start": "node dist/server.mjs",
         "typecheck": "tsc --noEmit",

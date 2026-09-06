@@ -6,6 +6,8 @@
     "type": "module",
     "scripts": {
         "dev": "vite --host 127.0.0.1",
+        "dev:prefilled": "VITE_PREFILLED=true vite --host 127.0.0.1",
+        "dev:demo": "VITE_PREFILLED=true vite --host 127.0.0.1",
         "build": "tsc -b && vite build",
         "test": "vitest run",
         "preview": "vite preview --host 127.0.0.1"

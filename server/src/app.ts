@@ -30,9 +30,11 @@ import {
     snapshotService,
 } from "./runtime.js"
 import { config } from "./config.js"
+import { seedPrefilledHaircutPackage } from "./prefilled-scenarios/haircut-package.js"
 
 // Flip this one switch to use the live OpenRouter-backed agent again.
-export const MOCK_DATA_MODE = true
+export const MOCK_DATA_MODE = process.env.MOCK_DATA_MODE === "true"
+export const PREFILLED_MODE = process.env.PREFILLED === "true"
 configureAgentProvider(MOCK_DATA_MODE)
 
 const RevisionSchema = v.pipe(v.number(), v.integer(), v.minValue(1))
@@ -249,6 +251,26 @@ app.onError((error, context) => {
 })
 
 app.get("/health", context => context.json({ status: "ok", mockDataMode: MOCK_DATA_MODE }))
+
+app.post("/prefilled/scenarios/haircut-package", async context => {
+    if (!PREFILLED_MODE) return context.notFound()
+    const body = v.parse(
+        v.object({
+            idempotencyKey: v.optional(
+                v.pipe(v.string(), v.trim(), v.minLength(8), v.maxLength(200)),
+            ),
+        }),
+        await context.req.json().catch(() => ({})),
+    )
+    return context.json(
+        await seedPrefilledHaircutPackage({
+            store: caseStore,
+            evidenceService,
+            ...(body.idempotencyKey ? { idempotencyKey: body.idempotencyKey } : {}),
+        }),
+        201,
+    )
+})
 
 app.get("/cases", context => context.json({ cases: caseStore.listCases() }))
 

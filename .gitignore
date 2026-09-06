@@ -15,3 +15,6 @@ dist/
 
 # Backend runtime data contains case and conversation state.
 server/data/
+
+# Synthetic evidence, recreated demo state, PDF outputs, and visual-QA renders.
+demo/

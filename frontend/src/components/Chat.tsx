@@ -17,13 +17,19 @@ import {
     answerBackendQuestion,
     backendAgentUrl,
     getBackendCase,
+    markBackendCaseReviewed,
     uploadBackendEvidence,
     type BackendQuestion,
 } from "@/lib/backend"
 import { useCase } from "@/lib/store"
 import { saveBlob } from "@/lib/storage"
 import { useAutoGrow } from "@/lib/autogrow"
-import { buildTranscript, isThinking } from "@/lib/chat-view"
+import {
+    buildTranscript,
+    clearSubmittedAttachments,
+    isThinking,
+    selectPendingAttachments,
+} from "@/lib/chat-view"
 import type { ChatStage } from "@/lib/types"
 import { Button } from "./ui/button"
 import { Textarea } from "./ui/textarea"
@@ -36,6 +42,10 @@ const INITIAL_CHAT_PROMPT =
 // Keep the previous automatic message hidden in saved conversations.
 const LEGACY_INITIAL_CHAT_PROMPT =
     "Read the current case and conversation. Ask the next useful intake or follow-up question using add_open_question with a suggestedAnswer. The question will be rendered as an interactive questionnaire; do not repeat it as chat text. Reuse an existing open question if present."
+export const PREPARE_PREFILING_PROMPT =
+    "[andrea-action:prepare-prefiling] The user selected Prepare filing summary. Read the authoritative case state, run save_final_prefiling_state with the current revision, then run compile_snapshot_pdf for the snapshot returned by that tool. Do not invent or silently change case facts. Confirm only after both tools succeed."
+export const PREPARE_CASE_PACK_PROMPT =
+    "[andrea-action:prepare-case-pack] The user selected Prepare my case pack. Read the authoritative case state, then run prepare_tribunal_case_pack with the current revision. Do not invent or silently change case facts. Confirm only after the tool succeeds."
 const streamingMarkdownExtensions = [streamingMarkdownExtension()]
 const markdownComponents = {
     a(props) {
@@ -56,6 +66,8 @@ function isInitialPrompt(message: { role: string; parts: Array<{ type: string; t
         message.parts.some(part => part.type === "text" && (
             part.text === INITIAL_CHAT_PROMPT ||
             part.text === LEGACY_INITIAL_CHAT_PROMPT ||
+            part.text === PREPARE_PREFILING_PROMPT ||
+            part.text === PREPARE_CASE_PACK_PROMPT ||
             part.text === "Start the pre-filing conversation. Read the current case state and ask the single most useful focused question." ||
             part.text?.startsWith("I have submitted my questionnaire answers. Read the answered questions,")
         ))
@@ -87,7 +99,10 @@ export function Chat({
     stage: ChatStage
     correctionKey: number
     onError: (s: string) => void
-    onGenerate: (kind: "filing" | "case-prep") => Promise<boolean>
+    onGenerate: (
+        kind: "filing" | "case-prep",
+        baseline: { snapshotIds: string[]; casePrepFilename: string | null },
+    ) => Promise<boolean>
 }) {
     const {
         checks,
@@ -97,28 +112,40 @@ export function Chat({
         backendCaseId,
         syncBackendCase,
         transcriptEntries,
+        localChatMessages,
+        casePrep,
         recordAnsweredQuestions,
     } = useCase()
     const [draft, setDraft] = useState("")
     const [busy, setBusy] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [pendingAttachmentIds, setPendingAttachmentIds] = useState<string[]>([])
     const [questions, setQuestions] = useState<BackendQuestion[]>([])
     const isPrep = stage === "preparation"
     const eligible = checks.every(check => check.status === "passed")
     const client = useMemo(
         () =>
-            !isPrep && backendCaseId
+            backendCaseId
                 ? createFlueClient({ url: backendAgentUrl(backendCaseId) })
                 : undefined,
-        [backendCaseId, isPrep],
+        [backendCaseId],
     )
     const agent = useFlueAgent({ client })
-    const messages = agent.messages.filter(
+    const backendMessages = agent.messages.filter(
         message =>
             message.display === "visible" &&
             !isInitialPrompt(message) &&
             message.parts.some(part => part.type === "text" && Boolean(part.text?.trim())),
     )
+    const messages = [
+        ...localChatMessages.map(message => ({
+            id: message.id,
+            role: message.role,
+            display: "visible" as const,
+            parts: [{ type: "text" as const, text: message.text, state: "complete" as const }],
+        })),
+        ...backendMessages,
+    ]
     const isLoading = agent.status === "submitted" || agent.status === "streaming"
     // Derived from the raw message list so a hidden control prompt still counts as
     // a pending turn, and so a submitted turn stays pending even while the previous
@@ -128,6 +155,7 @@ export function Chat({
     const answeredQuestions = questions.filter(
         question => question.status === "ANSWERED" && question.answer,
     )
+    const pendingAttachments = selectPendingAttachments(files, pendingAttachmentIds)
     const showEligibility = !isPrep && !eligible
     const transcript = buildTranscript(
         messages,
@@ -176,6 +204,10 @@ export function Chat({
             initialPromptSent.current = true
             return
         }
+        if (localChatMessages.length > 0) {
+            initialPromptSent.current = true
+            return
+        }
         initialPromptSent.current = true
         void getBackendCase(backendCaseId!).then(state => {
             if (state.questions.some(question => question.status === "OPEN")) return
@@ -188,7 +220,7 @@ export function Chat({
                     : "The conversation could not be started.",
             ),
         )
-    }, [agent, client, eligible, isPrep, onError, backendCaseId])
+    }, [agent, client, eligible, isPrep, onError, backendCaseId, localChatMessages.length])
 
     useEffect(() => {
         if (!backendCaseId || isPrep || agent.status !== "idle") return
@@ -232,6 +264,9 @@ export function Chat({
                     )
                 await saveBlob(evidence.id, file)
                 syncBackendCase(state)
+                setPendingAttachmentIds(current =>
+                    current.includes(evidence.id) ? current : [...current, evidence.id],
+                )
             }
         } catch (error) {
             onError(
@@ -247,11 +282,15 @@ export function Chat({
         const outgoing = draft
         const message = outgoing.trim()
         if (!message || isLoading || isPrep) return
+        const submittedAttachmentIds = pendingAttachmentIds
         setDraft("")
         let sent = false
         try {
             await agent.sendMessage(message)
             sent = true
+            setPendingAttachmentIds(current =>
+                clearSubmittedAttachments(current, submittedAttachmentIds),
+            )
             await refreshQuestions()
         } catch (error) {
             // Give the message back, unless the user has already typed a replacement.
@@ -303,7 +342,24 @@ export function Chat({
         if (busy || isLoading || uploading) return
         setBusy(true)
         try {
-            const success = await onGenerate(isPrep ? "case-prep" : "filing")
+            if (!backendCaseId || !client || !agent.historyReady) {
+                throw new Error("The agent is not connected to this case yet. Please try again.")
+            }
+            const kind = isPrep ? "case-prep" : "filing"
+            const current = isPrep
+                ? await getBackendCase(backendCaseId)
+                : await markBackendCaseReviewed(backendCaseId)
+            syncBackendCase(current)
+            const baseline = {
+                snapshotIds: current.snapshots
+                    .filter(snapshot => snapshot.pdfSha256)
+                    .map(snapshot => snapshot.id),
+                casePrepFilename: casePrep?.cueCard.filename ?? null,
+            }
+            await agent.sendMessage(
+                isPrep ? PREPARE_CASE_PACK_PROMPT : PREPARE_PREFILING_PROMPT,
+            )
+            const success = await onGenerate(kind, baseline)
             if (success) go(isPrep ? "complete" : "checkpoint")
         } catch (error) {
             onError(error instanceof Error ? error.message : "The case could not be prepared.")
@@ -373,7 +429,7 @@ export function Chat({
                                     <MessageCircle size={18} />
                                 </span>
                                 <div>
-                                    <strong>ClaimGuide</strong>
+                                    <strong>Andrea</strong>
                                     <p>
                                         {isPrep
                                             ? "When you’re ready, we’ll create a cue card for the consultation and one PDF stack containing your pre-filing summary and evidence."
@@ -438,7 +494,7 @@ export function Chat({
                                             <i />
                                             <i />
                                         </span>
-                                        <span>ClaimGuide is thinking</span>
+                                        <span>Andrea is thinking</span>
                                     </div>
                                 </div>
                             )}
@@ -460,13 +516,11 @@ export function Chat({
                     </>
                 )}
             </div>
-            {(isPrep || eligible) && (
+            {!isPrep && eligible && pendingAttachments.length > 0 && (
                 <div className="attachments-area">
-                    {files
-                        .filter(file => file.kind === "evidence")
-                        .map(file => (
-                            <FileCard key={file.id} file={file} onError={onError} />
-                        ))}
+                    {pendingAttachments.map(file => (
+                        <FileCard key={file.id} file={file} compact onError={onError} />
+                    ))}
                 </div>
             )}
             {(isPrep || eligible) && (
@@ -480,7 +534,7 @@ export function Chat({
                     >
                         <Textarea
                             ref={inputRef}
-                            aria-label="Message ClaimGuide"
+                            aria-label="Message Andrea"
                             placeholder={
                                 isPrep
                                     ? "Case preparation is ready when you are"
@@ -559,7 +613,7 @@ export function Chat({
                     <p className="composer-note">
                         {isPrep
                             ? "Your case-prep pack is generated from the details and evidence in this case."
-                            : "Messages and attachments are sent to the configured ClaimGuide backend."}
+                            : "Messages and attachments are sent to the configured Andrea backend."}
                     </p>
                 </div>
             )}

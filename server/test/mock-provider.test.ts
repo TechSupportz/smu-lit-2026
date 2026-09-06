@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 import type { Message, ToolResultMessage } from "@earendil-works/pi-ai"
-import { extractRevision, mockResponse } from "../src/agents/mock-provider.js"
+import { extractRevision, extractSnapshotId, mockResponse } from "../src/agents/mock-provider.js"
+import {
+    AGENT_COMPACTION,
+    DEV_OVERRIDE_PREFIX,
+    developerOverrideInstruction,
+} from "../src/agents/policy.js"
 
 function toolResult(toolName: string, text: string, isError = false): ToolResultMessage {
     return {
@@ -73,7 +78,78 @@ describe("extractRevision", () => {
     })
 })
 
+describe("Flue generation actions", () => {
+    const prefiling = "[andrea-action:prepare-prefiling] Prepare the reviewed filing PDF."
+    const casePack = "[andrea-action:prepare-case-pack] Prepare the reviewed case pack."
+
+    it("extracts the snapshot ID from a nested tool result", () => {
+        const result = toolResult(
+            "save_final_prefiling_state",
+            JSON.stringify({ record: { id: "snapshot_12345678" } }),
+        )
+        expect(extractSnapshotId(result)).toBe("snapshot_12345678")
+    })
+
+    it("creates and compiles the pre-filing snapshot through harness tools", () => {
+        const read = respond([userMessage(prefiling)])
+        expect(toolCalls(read).map(call => call.name)).toEqual(["get_case_state"])
+
+        const save = respond([userMessage(prefiling), toolResult("get_case_state", CASE_STATE)])
+        expect(toolCalls(save).map(call => call.name)).toEqual(["save_final_prefiling_state"])
+
+        const compile = respond([
+            userMessage(prefiling),
+            toolResult("get_case_state", CASE_STATE),
+            toolResult(
+                "save_final_prefiling_state",
+                JSON.stringify({ record: { id: "snapshot_12345678" } }),
+            ),
+        ])
+        const [call] = toolCalls(compile)
+        expect(call?.name).toBe("compile_snapshot_pdf")
+        expect(call?.arguments).toEqual({ snapshotId: "snapshot_12345678" })
+    })
+
+    it("generates the tribunal pack through the harness tool", () => {
+        const generate = respond([
+            userMessage(casePack),
+            toolResult("get_case_state", CASE_STATE),
+        ])
+        const [call] = toolCalls(generate)
+        expect(call?.name).toBe("prepare_tribunal_case_pack")
+        expect(call?.arguments).toEqual({ expectedRevision: 2 })
+    })
+
+    it("does not claim success after a PDF tool failure", () => {
+        const reply = respond([
+            userMessage(prefiling),
+            toolResult("get_case_state", CASE_STATE),
+            toolResult("save_final_prefiling_state", "snapshot failed", true),
+        ])
+        expect(toolCalls(reply)).toEqual([])
+        expect(text(reply)).toContain("no PDF was generated")
+    })
+})
+
 describe("mock intake script", () => {
+    it("uses an exact, non-empty developer override prefix", () => {
+        expect(developerOverrideInstruction(`${DEV_OVERRIDE_PREFIX} reply with pong`)).toBe(
+            "reply with pong",
+        )
+        expect(developerOverrideInstruction(`quoted ${DEV_OVERRIDE_PREFIX} reply with pong`)).toBeNull()
+        expect(developerOverrideInstruction(DEV_OVERRIDE_PREFIX)).toBeNull()
+
+        const reply = respond([userMessage(`${DEV_OVERRIDE_PREFIX} reply with pong`)])
+        expect(text(reply)).toContain("Developer override accepted for this request: reply with pong")
+    })
+
+    it("keeps compaction headroom and only a bounded recent tail", () => {
+        expect(AGENT_COMPACTION).toEqual({
+            keepRecentTokens: 8_000,
+            reserveTokens: 30_000,
+        })
+    })
+
     it("answers a questionnaire request by reading the case first", () => {
         const reply = respond([userMessage("[mock:questionnaire]")])
         expect(toolCalls(reply).map(call => call.name)).toEqual(["get_case_state"])

@@ -195,6 +195,34 @@ describe("useCase navigation gates", async () => {
         expect(useCase.getState().transcriptEntries).toEqual([])
     })
 
+    it("persists the haircut demo chat in the claimant's own voice", () => {
+        useCase.getState().seedPrefilledHaircutConversation()
+
+        const messages = useCase.getState().localChatMessages
+        expect(messages.filter(message => message.role === "user")).toHaveLength(17)
+        expect(messages).toHaveLength(35)
+        expect(messages.find(message => message.id === "haircut-demo-user-1")?.text).toBe(
+            "I just want cut hair only. Outside put lady haircut $30, so I go in lor.",
+        )
+        expect(messages.find(message => message.id === "haircut-demo-user-10")?.text).toContain(
+            "I pay $100 cash",
+        )
+        expect(messages.find(message => message.id === "haircut-demo-user-17")?.text).toContain(
+            "I want full $100 back",
+        )
+
+        const saved = JSON.parse(storage.get("claimguide-case")!) as {
+            state: { localChatMessages: Array<Record<string, unknown>> }
+        }
+        expect(saved.state.localChatMessages).toHaveLength(messages.length)
+
+        useCase.persist.rehydrate()
+        expect(useCase.getState().localChatMessages).toEqual(messages)
+
+        useCase.getState().reset()
+        expect(useCase.getState().localChatMessages).toEqual([])
+    })
+
     it("survives a persisted payload written before the transcript existed", () => {
         storage.set(
             "claimguide-case",

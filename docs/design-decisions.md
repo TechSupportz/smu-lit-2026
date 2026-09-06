@@ -21,7 +21,7 @@
 
 ## Accepted implementation decisions
 
-- ClaimGuide is the working name; navy and warm white with muted sage accents.
+- Andrea is the working name; navy and warm white with muted sage accents.
 - The floating panel combines eligibility, case details and files; corrections start in chat.
 - Eligibility uses a structured opening screen with replaceable demo assessment. Actual assessment is backend-owned.
 - Include the consent requirement for claims above $20,000 through $30,000 and qualifying claim categories.

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { buildTranscript, dedupeEntries, isThinking, type TranscriptEntry } from "./chat-view"
+import {
+    buildTranscript,
+    clearSubmittedAttachments,
+    dedupeEntries,
+    isThinking,
+    selectPendingAttachments,
+    type TranscriptEntry,
+} from "./chat-view"
 
 const message = (id: string) => ({ id })
 
@@ -91,6 +98,29 @@ describe("dedupeEntries", () => {
         expect(dedupeEntries([entry("q1", null, "first"), entry("q1", "m1", "second")])).toEqual([
             entry("q1", null, "first"),
         ])
+    })
+})
+
+describe("composer attachments", () => {
+    it("shows only files selected for the next message", () => {
+        const files = [
+            { id: "older", name: "already-sent.pdf" },
+            { id: "pending", name: "receipt.png" },
+            { id: "generated", name: "summary.pdf" },
+        ]
+
+        expect(selectPendingAttachments(files, ["pending"])).toEqual([
+            { id: "pending", name: "receipt.png" },
+        ])
+    })
+
+    it("clears admitted files while preserving attachments selected during submission", () => {
+        expect(
+            clearSubmittedAttachments(
+                ["sent-a", "sent-b", "selected-while-submitting"],
+                ["sent-a", "sent-b"],
+            ),
+        ).toEqual(["selected-while-submitting"])
     })
 })
 

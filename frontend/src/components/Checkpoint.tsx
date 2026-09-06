@@ -313,7 +313,7 @@ export function Checkpoint({
                             <span style={{ width: `${(count / 3) * 100}%` }} />
                         </div>
                         <p className="checklist-explainer">
-                            Tick each step after you’ve completed it outside ClaimGuide.
+                            Tick each step after you’ve completed it outside Andrea.
                         </p>
                         <div className="readiness-list">
                             {checklistItems.map((item, i) => (

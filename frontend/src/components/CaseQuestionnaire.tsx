@@ -81,7 +81,7 @@ function AnswerField({
                                 if (typeof providedRef === "function") providedRef(element)
                                 else if (providedRef) providedRef.current = element
                             }}
-                            rows={2}
+                            rows={1}
                         />
                     )
                 }}
@@ -315,7 +315,7 @@ export function GrillQuestionnaire({
         <div className="grill-card">
             <div className="grill-heading">
                 <div>
-                    <span>CLAIMGUIDE</span>
+                    <span>ANDREA</span>
                     <h2>{single ? "A question about your claim" : "Questions about your claim"}</h2>
                 </div>
                 <span>
