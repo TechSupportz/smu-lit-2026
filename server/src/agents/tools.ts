@@ -13,6 +13,7 @@ import type { assessCase } from "../services/assessment.js"
 import { refreshAssessment } from "../services/assessment.js"
 import { reconcileCase } from "../services/reconciliation.js"
 import {
+    casePrepService,
     caseStore,
     evidenceService,
     guidanceService,
@@ -376,6 +377,16 @@ export function useSctTools(caseId: string): void {
         input: v.object({ snapshotId: ToolIdSchema }),
         async run({ data }) {
             return toolOutput(await pdfService.compile(caseId, data.snapshotId))
+        },
+    })
+
+    useTool({
+        name: "prepare_tribunal_case_pack",
+        description:
+            "Generate the revision-bound tribunal cue cards and one indexed PDF stack containing the current pre-filing summary and every evidence original in upload order. This is a factual preparation aid, not evidence, legal strategy, or an official court form.",
+        input: v.object({ expectedRevision: RevisionSchema }),
+        async run({ data }) {
+            return toolOutput(await casePrepService.generate(caseId, data.expectedRevision))
         },
     })
 }

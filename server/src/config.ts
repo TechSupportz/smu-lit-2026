@@ -26,12 +26,15 @@ const ConfigSchema = v.object({
     EVIDENCE_DIR: v.optional(v.string(), "./data/evidence"),
     SNAPSHOT_DIR: v.optional(v.string(), "./data/snapshots"),
     TYPST_BIN: v.optional(v.string(), "typst"),
+    PDFUNITE_BIN: v.optional(v.string(), "pdfunite"),
+    SOFFICE_BIN: v.optional(v.string(), "soffice"),
     MAX_UPLOAD_BYTES: integerFromString(10 * 1024 * 1024),
     MAX_EVIDENCE_PAGES: integerFromString(80),
     MAX_MODEL_CALLS_PER_TURN: integerFromString(8),
     PROVIDER_TIMEOUT_MS: integerFromString(90_000),
     PROVIDER_MAX_RETRIES: integerFromString(2),
     TYPST_TIMEOUT_MS: integerFromString(20_000),
+    CASE_PREP_TIMEOUT_MS: integerFromString(60_000),
 })
 
 export interface AppConfig {
@@ -50,12 +53,15 @@ export interface AppConfig {
     evidenceDir: string
     snapshotDir: string
     typstBin: string
+    pdfUniteBin: string
+    sofficeBin: string
     maxUploadBytes: number
     maxEvidencePages: number
     maxModelCallsPerTurn: number
     providerTimeoutMs: number
     providerMaxRetries: number
     typstTimeoutMs: number
+    casePrepTimeoutMs: number
 }
 
 function absolute(path: string, root: string): string {
@@ -91,12 +97,15 @@ export function loadConfig(
         evidenceDir: absolute(source.EVIDENCE_DIR, root),
         snapshotDir: absolute(source.SNAPSHOT_DIR, root),
         typstBin: source.TYPST_BIN,
+        pdfUniteBin: source.PDFUNITE_BIN,
+        sofficeBin: source.SOFFICE_BIN,
         maxUploadBytes: source.MAX_UPLOAD_BYTES,
         maxEvidencePages: source.MAX_EVIDENCE_PAGES,
         maxModelCallsPerTurn: source.MAX_MODEL_CALLS_PER_TURN,
         providerTimeoutMs: source.PROVIDER_TIMEOUT_MS,
         providerMaxRetries: source.PROVIDER_MAX_RETRIES,
         typstTimeoutMs: source.TYPST_TIMEOUT_MS,
+        casePrepTimeoutMs: source.CASE_PREP_TIMEOUT_MS,
     }
 }
 

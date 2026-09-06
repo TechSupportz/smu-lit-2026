@@ -20,6 +20,7 @@ import { AppError, ProcessingError, RevisionConflictError } from "./errors.js"
 import { refreshAssessment } from "./services/assessment.js"
 import { reconcileCase } from "./services/reconciliation.js"
 import {
+    casePrepService,
     caseStore,
     evidenceService,
     flueCleanupService,
@@ -104,6 +105,74 @@ function safeSnapshotPath(path: string): string {
 function contentDisposition(filename: string): string {
     const ascii = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_")
     return `attachment; filename="${ascii || "download"}"`
+}
+
+function currentCasePrep(caseId: string) {
+    const artifact = casePrepService.get(caseId)
+    const record = caseStore.getCase(caseId)
+    if (!artifact || artifact.caseRevision !== record.revision) {
+        throw new ProcessingError(
+            "No tribunal case-prep pack exists for the current reviewed case revision.",
+        )
+    }
+    return artifact
+}
+
+function casePrepPresentation(caseId: string) {
+    const artifact = currentCasePrep(caseId)
+    const snapshot = caseStore.getSnapshot(caseId, artifact.snapshotId)
+    const evidence = artifact.evidenceManifest.map(item => {
+        const original = caseStore.getEvidence(caseId, item.evidenceId)
+        return {
+            id: original.id,
+            originalFilename: original.originalFilename,
+            mimeType: original.mimeType,
+            sha256: original.sha256,
+            stackStartPage: item.stackStartPage,
+            stackEndPage: item.stackEndPage,
+            url: `/cases/${encodeURIComponent(caseId)}/evidence/${encodeURIComponent(original.id)}/content`,
+        }
+    })
+    return {
+        id: artifact.id,
+        snapshotId: artifact.snapshotId,
+        caseRevision: artifact.caseRevision,
+        createdAt: artifact.createdAt,
+        cueCard: {
+            filename: `${artifact.basename}-cue-card.pdf`,
+            sha256: artifact.cuePdfSha256,
+            pageCount: artifact.cuePageCount,
+            url: `/cases/${encodeURIComponent(caseId)}/case-prep/cue-card`,
+        },
+        stack: {
+            filename: `${artifact.basename}.pdf`,
+            sha256: artifact.stackPdfSha256,
+            pageCount: artifact.stackPageCount,
+            url: `/cases/${encodeURIComponent(caseId)}/case-prep/stack`,
+        },
+        prefiling:
+            snapshot.pdfPath && snapshot.pdfSha256
+                ? {
+                      filename: `${snapshot.basename}.pdf`,
+                      sha256: snapshot.pdfSha256,
+                      url: `/cases/${encodeURIComponent(caseId)}/snapshots/${encodeURIComponent(snapshot.id)}/pdf`,
+                  }
+                : null,
+        evidence,
+    }
+}
+
+async function verifiedArtifact(
+    path: string,
+    expectedSha256: string,
+    requirePdf = true,
+): Promise<Uint8Array> {
+    const bytes = await readFile(safeSnapshotPath(path))
+    const digest = createHash("sha256").update(bytes).digest("hex")
+    if (digest !== expectedSha256 || (requirePdf && bytes.subarray(0, 5).toString() !== "%PDF-")) {
+        throw new ProcessingError("Generated artifact failed its integrity check.")
+    }
+    return bytes
 }
 
 function formText(form: FormData, key: string): string | null {
@@ -443,6 +512,37 @@ app.get("/cases/:caseId/snapshots/:snapshotId/pdf", async context => {
     })
 })
 
+app.post("/cases/:caseId/case-prep", async context => {
+    const caseId = context.req.param("caseId")
+    const expectedRevision = caseStore.getCase(caseId).revision
+    await casePrepService.generate(caseId, expectedRevision)
+    return context.json(casePrepPresentation(caseId), 201)
+})
+
+app.get("/cases/:caseId/case-prep", context =>
+    context.json(casePrepPresentation(context.req.param("caseId"))),
+)
+
+app.get("/cases/:caseId/case-prep/cue-card", async context => {
+    const artifact = currentCasePrep(context.req.param("caseId"))
+    const bytes = await verifiedArtifact(artifact.cuePdfPath, artifact.cuePdfSha256)
+    return context.body(Buffer.from(bytes), 200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": contentDisposition(`${artifact.basename}-cue-card.pdf`),
+        "X-Content-Type-Options": "nosniff",
+    })
+})
+
+app.get("/cases/:caseId/case-prep/stack", async context => {
+    const artifact = currentCasePrep(context.req.param("caseId"))
+    const bytes = await verifiedArtifact(artifact.stackPdfPath, artifact.stackPdfSha256)
+    return context.body(Buffer.from(bytes), 200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": contentDisposition(`${artifact.basename}.pdf`),
+        "X-Content-Type-Options": "nosniff",
+    })
+})
+
 app.post("/cases/:caseId/turns", async context => {
     const caseId = context.req.param("caseId")
     const input = await jsonBody(context, TurnInputSchema)
@@ -502,7 +602,9 @@ app.delete("/cases/:caseId", async context => {
         .abort()
         .catch(() => undefined)
     const conversationCleanup = await flueCleanupService.purgeCase(caseId)
-    const deleted = await caseStore.mutations.run(caseId, () => caseStore.deleteCaseRecords(caseId))
+    const deleted = await caseStore.mutations.delete(caseId, () =>
+        caseStore.deleteCaseRecords(caseId),
+    )
     const paths = [
         ...deleted.evidencePaths.map(storageKey => {
             const root = resolve(config.evidenceDir)

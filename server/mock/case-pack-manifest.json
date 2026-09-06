@@ -1,0 +1,32 @@
+{
+  "displayName": "Tan v Acme Renovation",
+  "createdAt": "2026-09-06T10:00:00.000Z",
+  "snapshotId": "snap_mock_clean",
+  "caseRevision": 7,
+  "documents": [
+    {
+      "sequence": 1,
+      "kind": "CUE CARD",
+      "title": "Tribunal cue cards",
+      "sha256": "mock-cue-card-hash",
+      "startPage": 2,
+      "endPage": 4
+    },
+    {
+      "sequence": 2,
+      "kind": "PRE-FILING",
+      "title": "Reviewed pre-filing summary",
+      "sha256": "mock-prefiling-hash",
+      "startPage": 5,
+      "endPage": 7
+    },
+    {
+      "sequence": 3,
+      "kind": "EVIDENCE",
+      "title": "invoice-and-chat.pdf",
+      "sha256": "mock-evidence-hash",
+      "startPage": 8,
+      "endPage": 10
+    }
+  ]
+}

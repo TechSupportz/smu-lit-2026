@@ -1,12 +1,12 @@
 # SCT pre-filing agent server
 
-Internal, unauthenticated backend for collecting and reviewing Small Claims Tribunals pre-filing information. It stores structured case state separately from Flue's durable conversation state, preserves uploaded originals, and can produce immutable JSON snapshots and Typst PDF preparation summaries.
+Internal, unauthenticated backend for collecting and reviewing Small Claims Tribunals information. It stores structured case state separately from Flue's durable conversation state, preserves uploaded originals, and can produce immutable JSON snapshots, Typst PDF summaries and cue cards, and one indexed tribunal PDF stack.
 
-This server does not file a claim, serve documents, provide legal advice, or establish that an allegation is true or eligible.
+This server does not file a claim, serve documents, coach legal arguments, provide legal advice, or establish that an allegation is true or eligible.
 
 ## Run locally
 
-Requires Node.js 22.19 or newer, Typst, and Poppler's `pdfinfo` for PDF verification.
+Requires Node.js 22.19 or newer, Typst, Poppler's `pdfinfo`, `pdfunite`, and LibreOffice (`soffice`) for Office-evidence conversion.
 
 ```sh
 cp .env.sample .env
@@ -28,7 +28,7 @@ pnpm build
 - `data/cases.db` is authoritative for application case state.
 - `data/flue.db` stores Flue conversations, submissions, and streaming history.
 - `data/evidence/` stores immutable originals under backend-generated names. Uploaded filenames are metadata only.
-- `data/snapshots/` stores immutable JSON/PDF pairs. A new snapshot supersedes, but never overwrites, the previous snapshot.
+- `data/snapshots/` stores immutable JSON/PDF pairs, cue-card Typst/PDF pairs, stack manifests, and merged case-pack PDFs. A new revision supersedes, but never overwrites, the previous revision's artifacts.
 - Case deletion first requests an abort for active agent work, deletes all application rows, and then removes case-owned evidence and generated artifacts.
 - This release deliberately has no authentication or user isolation. Any caller that can reach the server can see or mutate the shared case list. Bind it to localhost or a trusted internal network only.
 - The configured OpenRouter routes may have provider-specific data-handling terms. Local deletion cannot delete data retained by a model provider. Do not use this demo for unnecessary sensitive data.
@@ -57,8 +57,13 @@ All JSON errors use `{ "error": { "code", "message", "details" } }`. Mutations a
 | `POST`                   | `/cases/:caseId/snapshots`                         | Create a revision-bound JSON snapshot              |
 | `GET`                    | `/cases/:caseId/snapshots/:snapshotId[/json]`      | Metadata or integrity-checked JSON                 |
 | `POST`, `GET`            | `/cases/:caseId/snapshots/:snapshotId/pdf`         | Compile or download PDF                            |
+| `POST`, `GET`            | `/cases/:caseId/case-prep`                          | Generate or inspect the current tribunal pack      |
+| `GET`                    | `/cases/:caseId/case-prep/cue-card`                 | Integrity-checked cue-card PDF                     |
+| `GET`                    | `/cases/:caseId/case-prep/stack`                    | Integrity-checked indexed PDF stack                |
 
 Evidence upload is `multipart/form-data` with fields `file`, `expectedRevision`, optional `documentType`, optional `description`, and optional `relevantPages` as a JSON array of 1-based pages.
+
+Case-prep generation requires a user-reviewed snapshot at the current case revision. The stack order is index, cue card, current pre-filing summary, then every evidence file in upload order. Original PDFs pass through after validation; images and text are placed on A4 pages; supported Word, OpenDocument, PowerPoint, and spreadsheet formats are converted through an isolated headless LibreOffice profile. Originals remain separately downloadable. A conversion failure aborts the pack instead of silently omitting a file. Office files can be packed but are not sent as binary text to the extraction model; convert them to PDF or an image first if AI extraction is required.
 
 ### Frontend turn and stream example
 

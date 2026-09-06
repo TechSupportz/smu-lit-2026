@@ -46,12 +46,15 @@ export function testConfig(dir: string, overrides: Partial<AppConfig> = {}): App
         evidenceDir: join(dir, "evidence"),
         snapshotDir: join(dir, "snapshots"),
         typstBin: "typst",
+        pdfUniteBin: "pdfunite",
+        sofficeBin: "soffice",
         maxUploadBytes: 10 * 1024 * 1024,
         maxEvidencePages: 80,
         maxModelCallsPerTurn: 8,
         providerTimeoutMs: 90_000,
         providerMaxRetries: 2,
         typstTimeoutMs: 20_000,
+        casePrepTimeoutMs: 60_000,
         ...overrides,
     }
 }
