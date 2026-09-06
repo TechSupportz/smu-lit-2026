@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
     ArrowLeft,
     ArrowUpRight,
@@ -16,13 +16,23 @@ import { Chat } from "./components/Chat"
 import { Checkpoint } from "./components/Checkpoint"
 import { ProgressPanel } from "./components/ProgressPanel"
 import { useCase } from "./lib/store"
-import { createBackendPdf, deleteBackendCase, generateCasePrep, getBackendCase } from "./lib/backend"
+import {
+    BackendError,
+    createBackendPdf,
+    deleteBackendCase,
+    generateCasePrep,
+    getBackendCase,
+} from "./lib/backend"
+import { teardownCase, type TeardownResult } from "./lib/lifecycle"
 import { removeBlob, saveBlob } from "./lib/storage"
 import type { Stage } from "./lib/types"
+type Confirmation = { mode: "clear" } | { mode: "new"; category?: string }
+
 export default function App() {
     const {
         stage,
         go,
+        start,
         started,
         files,
         addFile,
@@ -31,30 +41,47 @@ export default function App() {
         backendCaseId,
         syncBackendCase,
         setCasePrep,
-    } =
-        useCase()
+    } = useCase()
     const [panelOpen, setPanelOpen] = useState(() => window.innerWidth > 900)
     const [correctionKey, setCorrectionKey] = useState(0)
     const [error, setError] = useState("")
-    const [clearOpen, setClearOpen] = useState(false)
+    const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
     const [clearing, setClearing] = useState(false)
+    const [caseMissing, setCaseMissing] = useState(false)
+    // Anything a teardown could not remove, kept until it is retried or dismissed.
+    const [leftovers, setLeftovers] = useState<TeardownResult | null>(null)
     const [helpOpen, setHelpOpen] = useState(false)
+    // Control that should receive focus once the confirmation dialog closes.
+    const focusOnClose = useRef<string | null>(null)
     const stageIndex = ["eligibility", "filing"].includes(stage)
         ? 0
         : stage === "checkpoint"
           ? 1
           : 2
     useEffect(() => {
+        const compact = window.matchMedia("(max-width: 900px)")
+        const syncPanel = () => setPanelOpen(!compact.matches)
+        compact.addEventListener("change", syncPanel)
+        return () => compact.removeEventListener("change", syncPanel)
+    }, [])
+    useEffect(() => {
         if (!backendCaseId) return
         void getBackendCase(backendCaseId)
-            .then(syncBackendCase)
-            .catch(error =>
+            .then(state => {
+                setCaseMissing(false)
+                syncBackendCase(state)
+            })
+            .catch(error => {
+                if (error instanceof BackendError && error.status === 404) {
+                    setCaseMissing(true)
+                    return
+                }
                 setError(
                     error instanceof Error
                         ? error.message
                         : "The latest case details could not be loaded.",
-                ),
-            )
+                )
+            })
     }, [backendCaseId, syncBackendCase])
     async function generate(kind: "filing" | "case-prep") {
         if (kind === "case-prep") {
@@ -100,24 +127,55 @@ export default function App() {
             return false
         }
     }
-    async function clear() {
+    async function confirmTeardown() {
+        if (!confirmation || clearing) return
         setClearing(true)
+        const result = await teardownCase({
+            backendCaseId,
+            fileIds: files.map(file => file.id),
+            deleteCase: deleteCaseIfPresent,
+            removeFile: removeBlob,
+        })
+        reset()
+        setCaseMissing(false)
+        // A clean teardown says nothing about unrelated errors, so leave them alone.
+        setLeftovers(result.problems.length > 0 ? result : null)
+        setClearing(false)
+        const intent = confirmation
+        if (intent.mode === "new") {
+            start(intent.category)
+            focusOnClose.current = "workspace-back"
+        } else {
+            focusOnClose.current = "landing-start"
+        }
+        setConfirmation(null)
+    }
+    async function retryTeardown() {
+        if (!leftovers || clearing) return
+        setClearing(true)
+        const result = await teardownCase({
+            ...leftovers.remaining,
+            deleteCase: deleteCaseIfPresent,
+            removeFile: removeBlob,
+        })
+        setLeftovers(result.problems.length > 0 ? result : null)
+        setClearing(false)
+    }
+    async function deleteCaseIfPresent(caseId: string) {
         try {
-            if (backendCaseId) await deleteBackendCase(backendCaseId)
-            await Promise.all(files.map(f => removeBlob(f.id)))
-            reset()
-            setClearOpen(false)
+            await deleteBackendCase(caseId)
         } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Could not clear all saved case data. Please try again.",
-            )
-        } finally {
-            setClearing(false)
+            if (error instanceof BackendError && error.status === 404) return
+            throw error
         }
     }
-    const resume = useCase(s => s.resume)
+    function requestStart(category?: string) {
+        if (started) {
+            setConfirmation({ mode: "new", category })
+            return
+        }
+        start(category)
+    }
     return (
         <div className={`app ${stage === "landing" ? "landing" : "workspace"}`}>
             <div className="preview-bar">
@@ -146,21 +204,22 @@ export default function App() {
                                 About small claims
                                 <ArrowUpRight size={13} />
                             </button>
-                            {started ? (
-                                <Button variant="outline" onClick={resume}>
-                                    Continue my case
-                                    <ChevronRight size={15} />
-                                </Button>
-                            ) : (
-                                <a
-                                    className="court-link"
-                                    href="https://www.judiciary.gov.sg/civil/small-claims"
-                                    target="_blank"
-                                    rel="noreferrer"
+                            <a
+                                className="court-link"
+                                href="https://www.judiciary.gov.sg/civil/small-claims"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                Court resources
+                                <ArrowUpRight size={14} />
+                            </a>
+                            {started && (
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setConfirmation({ mode: "clear" })}
                                 >
-                                    Court resources
-                                    <ArrowUpRight size={14} />
-                                </a>
+                                    Clear case
+                                </Button>
                             )}
                         </>
                     ) : (
@@ -173,10 +232,18 @@ export default function App() {
                                 Save & exit
                             </Button>
                             <Button
+                                variant="ghost"
+                                onClick={() => setConfirmation({ mode: "clear" })}
+                            >
+                                Clear case
+                            </Button>
+                            <Button
                                 className="mobile-panel-button"
                                 variant="outline"
                                 size="icon"
                                 aria-label="Toggle case panel"
+                                aria-expanded={panelOpen}
+                                aria-controls="case-panel"
                                 onClick={() => setPanelOpen(!panelOpen)}
                             >
                                 <Menu size={18} />
@@ -185,8 +252,37 @@ export default function App() {
                     )}
                 </nav>
             </header>
+            {caseMissing && (
+                <div className="recovery-banner" role="status">
+                    <p>
+                        This saved case is no longer on the backend, so it cannot be continued. Your
+                        local copy is out of date. Starting fresh clears it from this browser.
+                    </p>
+                    <Button
+                        variant="outline"
+                        disabled={clearing}
+                        onClick={() => setConfirmation({ mode: "new" })}
+                    >
+                        Start a fresh case
+                    </Button>
+                </div>
+            )}
+            {leftovers && (
+                <div className="recovery-banner" role="status">
+                    <p>
+                        {leftovers.problems.join(" ")} Your new case is unaffected, but these leftovers
+                        are still there.
+                    </p>
+                    <Button variant="outline" disabled={clearing} onClick={() => void retryTeardown()}>
+                        {clearing ? "Removing…" : "Try removing again"}
+                    </Button>
+                    <Button variant="ghost" disabled={clearing} onClick={() => setLeftovers(null)}>
+                        Dismiss
+                    </Button>
+                </div>
+            )}
             {stage === "landing" ? (
-                <Landing />
+                <Landing onStart={requestStart} caseMissing={caseMissing} />
             ) : (
                 <>
                     <div className="journey-bar">
@@ -200,7 +296,9 @@ export default function App() {
                                     className={`journey-step ${i === stageIndex ? "active" : ""} ${i < stageIndex ? "finished" : ""}`}
                                     key={item.label}
                                 >
-                                    <span>{i < stageIndex ? <Check size={13} /> : i + 1}</span>
+                                    <span aria-hidden="true">
+                                        {i < stageIndex ? <Check size={13} /> : i + 1}
+                                    </span>
                                     <button
                                         disabled={i > stageIndex}
                                         onClick={() => go(item.stage as Stage)}
@@ -215,6 +313,7 @@ export default function App() {
                     <main className="workspace-main">
                         <div className="work-column">
                             <button
+                                id="workspace-back"
                                 className="back-link"
                                 onClick={() =>
                                     go(
@@ -282,7 +381,11 @@ export default function App() {
                         <ArrowUpRight size={13} />
                     </a>
                     <button onClick={() => setHelpOpen(true)}>Privacy & this preview</button>
-                    {started && <button onClick={() => setClearOpen(true)}>Clear my case</button>}
+                    {started && (
+                        <button onClick={() => setConfirmation({ mode: "clear" })}>
+                            Clear my case
+                        </button>
+                    )}
                 </div>
             </footer>
             {error && (
@@ -293,27 +396,50 @@ export default function App() {
                     </button>
                 </div>
             )}
-            <Dialog open={clearOpen} onOpenChange={setClearOpen}>
-                <DialogContent>
-                    <DialogTitle>Clear your saved case?</DialogTitle>
+            <Dialog
+                open={confirmation !== null}
+                onOpenChange={open => {
+                    if (!open && !clearing) setConfirmation(null)
+                }}
+            >
+                <DialogContent
+                    onCloseAutoFocus={event => {
+                        const target = focusOnClose.current
+                        focusOnClose.current = null
+                        const element = target && document.getElementById(target)
+                        if (!element) return
+                        event.preventDefault()
+                        element.focus()
+                    }}
+                >
+                    <DialogTitle>
+                        {confirmation?.mode === "new"
+                            ? "Start a new case?"
+                            : "Clear your saved case?"}
+                    </DialogTitle>
                     <DialogDescription>
-                        This removes your conversations, answers and files from this browser.
-                        Download anything you want to keep first. This cannot be undone.
+                        {confirmation?.mode === "new"
+                            ? "Starting a new case first removes the case you have saved, including its conversation, answers and files. Download anything you want to keep first. This cannot be undone."
+                            : "This removes your conversations, answers and files from this browser. Download anything you want to keep first. This cannot be undone."}
                     </DialogDescription>
                     <div className="dialog-actions">
                         <Button
                             variant="outline"
                             disabled={clearing}
-                            onClick={() => setClearOpen(false)}
+                            onClick={() => setConfirmation(null)}
                         >
                             Keep my case
                         </Button>
                         <Button
                             variant="destructive"
                             disabled={clearing}
-                            onClick={() => void clear()}
+                            onClick={() => void confirmTeardown()}
                         >
-                            {clearing ? "Clearing…" : "Clear my case"}
+                            {clearing
+                                ? "Clearing…"
+                                : confirmation?.mode === "new"
+                                  ? "Clear and start new"
+                                  : "Clear my case"}
                         </Button>
                     </div>
                 </DialogContent>

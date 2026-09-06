@@ -21,8 +21,14 @@ const options = [
     { id: "tenancy", label: "A rental deposit", icon: KeyRound },
     { id: "property", label: "Damage to my property", icon: PackageOpen },
 ]
-export function Landing() {
-    const { start, started, resume } = useCase()
+export function Landing({
+    onStart,
+    caseMissing,
+}: {
+    onStart: (category?: string) => void
+    caseMissing: boolean
+}) {
+    const { started, resume } = useCase()
     return (
         <>
             <main className="landing-main">
@@ -40,29 +46,59 @@ export function Landing() {
                             When something goes wrong, knowing what to do next shouldn’t be the hard
                             part. We’ll help you prepare your small claim, one step at a time.
                         </p>
-                        <div className="start-label">What brings you here today?</div>
+                        {started && (
+                            <div className="saved-case-card">
+                                <strong>
+                                    {caseMissing ? "This case can’t be continued." : "Welcome back."}
+                                </strong>
+                                <p>
+                                    {caseMissing
+                                        ? "The case saved in this browser is no longer on the backend, so there is nothing left to continue. Starting a new case clears the stale copy."
+                                        : "You have a saved case in this browser. Continue where you left off, or start again from scratch."}
+                                </p>
+                                <div className="saved-case-actions">
+                                    {!caseMissing && (
+                                        <Button onClick={resume}>
+                                            Continue my case <ArrowRight size={15} />
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant={caseMissing ? "default" : "outline"}
+                                        onClick={() => onStart()}
+                                    >
+                                        Start a new case
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                        <div className="start-label">
+                            {started ? "Or start something new" : "What brings you here today?"}
+                        </div>
                         <div className="claim-chips">
                             {options.map(({ id, label, icon: Icon }) => (
-                                <button key={id} onClick={() => start(id)}>
+                                <button key={id} onClick={() => onStart(id)}>
                                     <Icon size={17} />
                                     {label}
                                     <ArrowUpRight size={14} />
                                 </button>
                             ))}
                         </div>
-                        <Button className="start-button" onClick={() => start()}>
+                        <Button
+                            id="landing-start"
+                            className="start-button"
+                            onClick={() => onStart()}
+                        >
                             Let’s work it out <ArrowRight size={17} />
                         </Button>
                         <p className="start-footnote">
                             Not sure where your claim fits? Start here.
                         </p>
-                        {started && (
-                            <button className="resume-link" onClick={resume}>
-                                Welcome back. Continue your saved case <ArrowRight size={15} />
-                            </button>
-                        )}
                     </div>
-                    <div className="hero-art" aria-label="From your story to a prepared claim">
+                    <div
+                        className="hero-art"
+                        role="img"
+                        aria-label="From your story to a prepared claim"
+                    >
                         <div className="art-orbit orbit-one" />
                         <div className="art-orbit orbit-two" />
                         <div className="art-label">

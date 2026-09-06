@@ -86,6 +86,127 @@ describe("useCase navigation gates", async () => {
         expect(useCase.getState()).toMatchObject({ grillStarted: false, grillComplete: false })
     })
 
+    it("detaches every part of a saved case before a new one starts", () => {
+        useCase.getState().setChecks(passedChecks())
+        useCase.getState().setBackendCase("case_12345678", 3)
+        useCase.getState().setDetails({ respondent: "Example Pte Ltd", summary: "What happened." })
+        useCase.getState().toggleItem("filed")
+        useCase.getState().addFile({
+            id: "local-summary",
+            name: "pre-filing-summary.pdf",
+            size: 512,
+            kind: "generated",
+            status: "ready",
+        })
+        const previousKey = useCase.getState().backendCreateKey
+
+        useCase.getState().reset()
+
+        expect(useCase.getState()).toMatchObject({
+            stage: "landing",
+            started: false,
+            backendCaseId: null,
+            backendRevision: null,
+            files: [],
+            checklist: [],
+            details: { respondent: "", summary: "", outcome: "" },
+            answers: { category: "", amount: "" },
+        })
+        expect(useCase.getState().checks.every(check => check.status === "pending")).toBe(true)
+        expect(useCase.getState().backendCreateKey).not.toBe(previousKey)
+
+        useCase.getState().start("tenancy")
+
+        expect(useCase.getState()).toMatchObject({
+            stage: "filing",
+            started: true,
+            backendCaseId: null,
+            answers: { category: "tenancy" },
+        })
+    })
+
+    it("records questionnaire answers once, in order, anchored to the visible message", () => {
+        useCase.getState().recordAnsweredQuestions([
+            { questionId: "q1", question: "When was it due?", answer: "1 September", afterMessageId: "m2" },
+            { questionId: "q2", question: "What did you pay?", answer: "S$220", afterMessageId: "m2" },
+        ])
+
+        expect(useCase.getState().transcriptEntries).toMatchObject([
+            { questionId: "q1", question: "When was it due?", answer: "1 September", afterMessageId: "m2" },
+            { questionId: "q2", question: "What did you pay?", answer: "S$220", afterMessageId: "m2" },
+        ])
+        for (const entry of useCase.getState().transcriptEntries)
+            expect(Number.isNaN(Date.parse(entry.at))).toBe(false)
+
+        // A re-submission of the same question must not duplicate the pair.
+        useCase.getState().recordAnsweredQuestions([
+            { questionId: "q1", question: "When was it due?", answer: "Corrected", afterMessageId: "m5" },
+            { questionId: "q3", question: "Did they reply?", answer: "No", afterMessageId: "m5" },
+        ])
+
+        expect(useCase.getState().transcriptEntries.map(entry => entry.questionId)).toEqual([
+            "q1",
+            "q2",
+            "q3",
+        ])
+        expect(useCase.getState().transcriptEntries[0]).toMatchObject({
+            answer: "1 September",
+            afterMessageId: "m2",
+        })
+    })
+
+    it("drops duplicates inside a single submission and leaves state alone when nothing is new", () => {
+        useCase.getState().recordAnsweredQuestions([
+            { questionId: "q1", question: "Asked once", answer: "first", afterMessageId: null },
+            { questionId: "q1", question: "Asked once", answer: "second", afterMessageId: null },
+        ])
+
+        expect(useCase.getState().transcriptEntries).toHaveLength(1)
+        expect(useCase.getState().transcriptEntries[0]).toMatchObject({ answer: "first" })
+
+        const before = useCase.getState().transcriptEntries
+        useCase.getState().recordAnsweredQuestions([
+            { questionId: "q1", question: "Asked once", answer: "third", afterMessageId: null },
+        ])
+        expect(useCase.getState().transcriptEntries).toBe(before)
+    })
+
+    it("persists the transcript across a reload and clears it on reset", () => {
+        useCase.getState().setBackendCase("case_12345678", 3)
+        useCase.getState().recordAnsweredQuestions([
+            { questionId: "q1", question: "When was it due?", answer: "1 September", afterMessageId: "m2" },
+        ])
+
+        const saved = JSON.parse(storage.get("claimguide-case")!) as {
+            state: { transcriptEntries: Array<Record<string, unknown>> }
+        }
+        expect(saved.state.transcriptEntries).toHaveLength(1)
+        expect(saved.state.transcriptEntries[0]).toMatchObject({
+            questionId: "q1",
+            question: "When was it due?",
+            answer: "1 September",
+            afterMessageId: "m2",
+        })
+
+        useCase.persist.rehydrate()
+        expect(useCase.getState().transcriptEntries).toMatchObject([{ questionId: "q1" }])
+
+        useCase.getState().reset()
+        expect(useCase.getState().transcriptEntries).toEqual([])
+    })
+
+    it("survives a persisted payload written before the transcript existed", () => {
+        storage.set(
+            "claimguide-case",
+            JSON.stringify({ state: { started: true, backendCaseId: "case_12345678" }, version: 2 }),
+        )
+
+        useCase.persist.rehydrate()
+
+        expect(useCase.getState().transcriptEntries).toEqual([])
+        expect(useCase.getState().started).toBe(true)
+    })
+
     it("atomically reconciles agent-updated sidebar data and backend documents", () => {
         useCase.getState().toggleItem("filed")
         useCase.getState().addFile({
