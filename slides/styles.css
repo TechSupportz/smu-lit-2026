@@ -222,6 +222,148 @@
   font-size: 15px;
 }
 
+/* Slide 2: scenario */
+.scenario-head {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.scenario-head h1 {
+  font-size: 52px;
+}
+
+.scenario-head .lede {
+  font-size: 19px;
+  max-width: 780px;
+}
+
+.scenario-badge {
+  background: var(--sand);
+  border-radius: 999px;
+  color: #815b48;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  margin-top: 2px;
+  padding: 10px 14px;
+  text-transform: uppercase;
+}
+
+.scenario-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 0.78fr 1.22fr;
+  margin-top: 24px;
+}
+
+.scenario-profile {
+  background: var(--navy);
+  border-radius: 18px;
+  color: white;
+  min-height: 338px;
+  padding: 25px;
+}
+
+.scenario-profile-label {
+  color: #bdd0dc;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.scenario-profile h2 {
+  color: white;
+  font-family: "DM Serif Display", Georgia, serif;
+  font-size: 29px;
+  font-weight: 400;
+  line-height: 1.14;
+  margin-top: 24px;
+}
+
+.scenario-profile-facts {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 17px;
+}
+
+.scenario-profile-facts span {
+  color: #d1dce4;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.scenario-profile-facts b {
+  color: white;
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.scenario-timeline {
+  display: grid;
+  gap: 11px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.scenario-step {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  min-height: 126px;
+  padding: 15px 17px;
+  position: relative;
+}
+
+.scenario-step > span {
+  color: var(--coral);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.scenario-step h3 {
+  font-size: 16px;
+  margin-top: 6px;
+}
+
+.scenario-step p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 5px;
+}
+
+.scenario-outcome {
+  align-items: center;
+  background: var(--sand);
+  border-radius: 13px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 190px 1fr;
+  margin-top: 11px;
+  min-height: 65px;
+  padding: 13px 16px;
+}
+
+.scenario-outcome strong {
+  color: #7c4f3b;
+  font-family: "DM Serif Display", Georgia, serif;
+  font-size: 21px;
+  font-weight: 400;
+}
+
+.scenario-outcome span {
+  color: #655d56;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 /* Common screenshot frame */
 .shot-frame {
   background: white;
@@ -314,6 +456,93 @@
   max-width: 470px;
 }
 
+.app-screenshot {
+  background-color: transparent;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.screenshot-shell {
+  background: white;
+  border: 1px solid #cbd5dd;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(19, 42, 65, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.screenshot-chrome {
+  align-items: center;
+  background: #f0f3f5;
+  border-bottom: 1px solid #d7dfe5;
+  display: flex;
+  flex: 0 0 25px;
+  gap: 5px;
+  height: 25px;
+  padding: 0 10px;
+}
+
+.screenshot-chrome > span {
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
+}
+
+.screenshot-chrome > span:nth-child(1) {
+  background: #d98a7c;
+}
+
+.screenshot-chrome > span:nth-child(2) {
+  background: #d4b76c;
+}
+
+.screenshot-chrome > span:nth-child(3) {
+  background: #7faa8c;
+}
+
+.screenshot-chrome > div {
+  background: white;
+  border-radius: 4px;
+  color: #81909c;
+  font-size: 7px;
+  margin-left: 7px;
+  padding: 4px 10px;
+  text-align: center;
+  width: 180px;
+}
+
+.screenshot-shell .app-screenshot {
+  border-radius: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.landing-screenshot {
+  background-image: url("./screenshots/file-d7b3c4469448a5f6ffb6a5ac0b38b15b.png");
+}
+
+.clarification-screenshot {
+  background-image: url("./screenshots/file-ff5ec895ee1184752ef82d9528f318a4.png");
+}
+
+.preparation-screenshot {
+  background-image: url("./screenshots/file-b45b241282c76be12a7d6f6f9f361a42.png");
+  background-position: center;
+}
+
+.chatgpt-full-screenshot {
+  background-image: url("./screenshots/Screendrop_2026-09-06-11-31-35.png");
+  background-position: center;
+  background-size: contain;
+  height: 365px;
+}
+
 /* Slide 2 */
 .intro-grid {
   align-items: start;
@@ -394,6 +623,10 @@
 .intro-visual .shot-frame {
   min-height: 365px;
   transform: rotate(0.6deg);
+}
+
+.intro-visual .screenshot-shell {
+  height: 365px;
 }
 
 .intro-visual {
@@ -596,8 +829,19 @@
   width: 24px;
 }
 
+.fact-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  margin: 10px 0 0 !important;
+}
+
 .facts-visual .shot-frame {
   min-height: 387px;
+}
+
+.facts-visual .screenshot-shell {
+  height: 387px;
 }
 
 .facts-visual {
@@ -817,6 +1061,10 @@
   min-height: 373px;
 }
 
+.core-visual .screenshot-shell {
+  height: 373px;
+}
+
 .core-visual {
   padding-top: 64px;
 }
@@ -857,6 +1105,182 @@
 .ecosystem-slide .lede {
   color: #cad6df;
   max-width: 790px;
+}
+
+.ecosystem-proof-grid {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 0.88fr 1.22fr;
+  margin-top: 20px;
+}
+
+.llms-card,
+.mcp-proof-card {
+  border-radius: 16px;
+  min-height: 292px;
+  overflow: hidden;
+}
+
+.llms-card {
+  background: white;
+  color: var(--ink);
+  padding: 18px 20px;
+}
+
+.llms-card .eco-eyebrow {
+  color: var(--blue);
+}
+
+.llms-title-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+
+.llms-title-row h2 {
+  color: var(--ink);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 22px;
+  margin: 0;
+}
+
+.llms-title-row a {
+  color: #7b8995;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+}
+
+.llms-intro {
+  color: var(--muted) !important;
+  font-size: 11px !important;
+  line-height: 1.35;
+  margin: 7px 0 10px !important;
+}
+
+.llms-code {
+  background: #f2f5f7;
+  border: 1px solid #d7e0e6;
+  border-radius: 9px;
+  color: #203d59;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.34;
+  margin: 0;
+  padding: 11px 12px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.llms-code code {
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+}
+
+.mcp-proof-card {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.mcp-proof-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.mcp-proof-head h2 {
+  font-size: 20px;
+  margin-top: 4px;
+}
+
+.connected-pill {
+  background: rgba(168, 194, 178, 0.16);
+  border: 1px solid rgba(168, 194, 178, 0.45);
+  border-radius: 999px;
+  color: #cfe2d6;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 6px 8px;
+}
+
+.chatgpt-shot .shot-frame {
+  border-color: rgba(255, 255, 255, 0.2);
+  border-radius: 11px;
+  box-shadow: none;
+  min-height: 221px;
+}
+
+.chatgpt-shot .shot-chrome {
+  height: 27px;
+}
+
+.chatgpt-shot .shot-address {
+  font-size: 0;
+  width: 180px;
+}
+
+.chatgpt-shot .shot-address::after {
+  content: "chatgpt.com · Andrea MCP connected";
+  font-size: 7px;
+}
+
+.chatgpt-shot .shot-content {
+  height: 194px;
+  padding: 22px 28px;
+}
+
+.chatgpt-shot .shot-content p {
+  font-size: 12px;
+  line-height: 1.35;
+  max-width: 470px;
+}
+
+.ecosystem-service-bar {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 10px 14px;
+}
+
+.ecosystem-service-bar div {
+  align-items: center;
+  display: flex;
+  gap: 11px;
+}
+
+.ecosystem-service-bar span {
+  color: #b7cfdf;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.ecosystem-service-bar strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ecosystem-service-bar code {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #dce8ef !important;
+  font-size: 9px;
+  padding: 0 !important;
+  white-space: nowrap;
 }
 
 .ecosystem-map {
