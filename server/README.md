@@ -83,6 +83,64 @@ events.addEventListener("control", event => {
 
 Flue supplies durable stream offsets, message deltas, tool input/output, processing logs, and submission settlement. Assistant response metadata includes `caseId`, `caseRevision`, and `eventContractVersion`. Mutation tool outputs also include the refreshed case revision and readiness assessment. On reconnect, reuse the last control-event offset. Retrying `/turns` with the same key and identical message converges on the original submission; reusing it with another message returns a conflict.
 
+## MCP integration
+
+The same backend can expose a streamable-HTTP MCP endpoint at `/mcp`. It is disabled by default. The endpoint advertises one tool, `talk_to_claim_guide`, which forwards each user turn to the same durable Flue agent harness used by the frontend. The host model does not conduct its own parallel interview or manipulate low-level case records. SQLite remains authoritative for revisions, provenance, eligibility, and preparation status.
+
+For a local MCP client or a private ChatGPT developer-mode tunnel, keep the server on loopback and enable the endpoint:
+
+```sh
+MCP_ENABLED=true pnpm dev
+```
+
+Vite also validates the incoming HTTP `Host` header. For a Cloudflare tunnel, allow its exact hostname in `server/.env`, then restart the server:
+
+```dotenv
+MCP_ENABLED=true
+VITE_ALLOWED_HOSTS=smallclaims.putt.dev
+```
+
+Use only the hostname, without `https://` or `/mcp`. Keep the allowlist exact; do not set Vite's `allowedHosts` to `true`.
+
+For another private MCP client, configure a long random token (at least 32 characters) and send it as `Authorization: Bearer <token>`:
+
+```sh
+MCP_ENABLED=true MCP_ACCESS_TOKEN="replace-with-a-long-random-secret" pnpm start
+```
+
+Keep the app server on loopback or a trusted private network. If a reverse proxy or tunnel provides remote access, publish only `/mcp` (and optionally `/health`) and keep the existing REST and Flue routes private. `MCP_ACCESS_TOKEN` protects `/mcp`; it does not add authentication to the rest of this deliberately internal backend.
+
+On the first user turn, the host calls `talk_to_claim_guide` with `message` and no `caseId`. The tool creates the case, starts the Flue conversation, waits for ClaimGuide's reply, and returns the case ID in both text and structured output. This text fallback is deliberate because some MCP hosts do not preserve `structuredContent` reliably. On every later user turn, the host calls the same tool with the returned `caseId` and the new message. A stable per-turn `idempotencyKey` makes identical retries converge.
+
+ClaimGuide's internal agent tools—not the MCP client—read and update structured case state, inspect evidence already uploaded through the application, retrieve official guidance, record only explicit user confirmations, create the immutable snapshot, and compile the PDF. When a compiled PDF exists, `talk_to_claim_guide` returns its `application/pdf` resource link automatically. The same URI can be read through MCP `resources/read`; the server rechecks the stored SHA-256 and PDF header before returning base64-encoded binary content.
+
+The PDF is a ClaimGuide preparation summary generated from the reviewed snapshot. It is not an official court form, proof of filing, or court acceptance. A failed eligibility assessment remains visible in the snapshot and is never converted into a filing-ready result merely because a PDF was generated.
+
+For example, a server-side application using the OpenAI Responses API can attach the deployed endpoint as a remote MCP tool. Keep approvals enabled because this server includes write tools:
+
+```ts
+const response = await openai.responses.create({
+    model: process.env.OPENAI_MODEL!,
+    tools: [
+        {
+            type: "mcp",
+            server_label: "claim_guide",
+            server_description: "Prepare and assess a Singapore SCT pre-filing case.",
+            server_url: process.env.CLAIM_GUIDE_MCP_URL!,
+            authorization: process.env.CLAIM_GUIDE_MCP_TOKEN!,
+            require_approval: "always",
+        },
+    ],
+    input: "Help me organise the facts for a possible small claim.",
+})
+```
+
+Omit `authorization` only for a loopback/private-tunnel connection where `MCP_ACCESS_TOKEN` is empty. Never put either the backend token or an OpenAI API key in browser code.
+
+MCP is still a tool protocol: ChatGPT or another host makes one hidden `talk_to_claim_guide` tool call for each addressed user turn. The difference is that the host never sees or orchestrates ClaimGuide's internal case tools. Case deletion, evidence upload, and the direct Flue conversation stream remain available through the existing frontend/HTTP API.
+
+This bearer-token mode is a private, single-tenant integration boundary, not sufficient for a public ChatGPT plugin. Before public deployment, add OAuth 2.1 discovery/token validation, bind every case to the authenticated subject, remove the shared `GET /cases` behavior, and publish privacy/support information. ChatGPT developer-mode testing also requires the endpoint to be reachable through public HTTPS or a private MCP tunnel.
+
 The frontend must keep these distinctions visible:
 
 - source provenance (`USER_ASSERTION`, `DOCUMENT`, `AI_INFERENCE`);

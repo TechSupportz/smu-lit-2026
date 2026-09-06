@@ -48,6 +48,16 @@ Open `http://127.0.0.1:5173`. Vite proxies `/api` to `http://127.0.0.1:3000`, so
 
 For a separately deployed backend, set `VITE_API_BASE_URL` when building the frontend. Set the backend's `CORS_ORIGINS` to the frontend origin.
 
+When a Cloudflare Quick Tunnel points at either development server, add that tunnel's exact generated hostname to `VITE_ALLOWED_HOSTS` and restart the affected server. For example:
+
+```sh
+VITE_ALLOWED_HOSTS=computational-grill-freeze-aka.trycloudflare.com pnpm dev
+```
+
+Set this in `server/.env` for a backend/MCP tunnel or `frontend/.env` for a frontend tunnel. Do not include `https://` or a path. Quick Tunnel hostnames change when a new tunnel is created, so update the value rather than hard-coding a generated hostname.
+
+The backend also includes an opt-in streamable-HTTP MCP endpoint for ordinary LLM clients. It exposes one conversational `talk_to_claim_guide` tool backed by the same Flue agent harness as the frontend; ClaimGuide owns the structured workflow and returns the verified final PDF as an MCP resource. See [server/README.md](server/README.md#mcp-integration) for the session contract, private bearer-token mode, and the additional OAuth/user-isolation work required before publishing it as a public ChatGPT plugin.
+
 ## Verify
 
 ```sh
