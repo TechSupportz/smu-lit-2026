@@ -15,6 +15,26 @@ The frontend uses `VITE_API_BASE_URL`, defaulting to `/api`. Its Vite developmen
 5. The filing-summary action completes the explicit review, creates an immutable snapshot, compiles its PDF, downloads the actual backend response, and saves a browser copy.
 6. “Clear my case” resolves the current revision, deletes the backend case, and then clears the browser copies and UI state.
 
+## Tribunal case-prep pack
+
+The final case-preparation action calls `POST /cases/:caseId/case-prep`. The response, and
+`GET /cases/:caseId/case-prep`, are expected to be JSON with this shape:
+
+```json
+{
+  "cueCard": { "filename": "cue-card.pdf", "sha256": "…", "pageCount": 1, "url": "…" },
+  "stack": { "filename": "tribunal-stack.pdf", "sha256": "…", "pageCount": 4, "url": "…" },
+  "prefiling": { "filename": "pre-filing-summary.pdf", "url": "…" },
+  "evidence": [{ "id": "evidence_…", "originalFilename": "receipt.pdf", "url": "…" }]
+}
+```
+
+`prefiling` may be `null` when no compiled snapshot exists. The frontend uses the dedicated
+`GET /cases/:caseId/case-prep/cue-card` and `/stack` routes for preview/download, the evidence
+`url` (or its `GET /cases/:caseId/evidence/:evidenceId/content` equivalent) for original files,
+and the returned pre-filing URL for the current snapshot PDF. The combined stack is the
+printable court-day bundle; original evidence downloads remain available individually.
+
 All JSON errors use `{ "error": { "code", "message", "details" } }`. The frontend surfaces the backend's safe message and refreshes the case before each multi-step mutation to avoid relying on a stale browser revision.
 
 ## Conversation transport
@@ -31,4 +51,4 @@ Grill Me follow-ups use plain chat or a persisted structured open question accor
 
 ## Scope boundary
 
-The current backend is deliberately limited to pre-filing preparation. It does not file, pay, serve documents, prepare hearing arguments, or generate the frontend's proposed post-filing legal memo. The frontend keeps that later stage visibly local until a separately scoped backend exists.
+The backend supports factual pre-filing and tribunal-day preparation: a reviewed summary, fact-based cue cards, and an indexed convenience copy of the evidence. It does not file, pay, serve documents, prepare or coach legal arguments, predict outcomes, or turn generated material into evidence or an official court form.

@@ -274,6 +274,32 @@ const migrations = [
     `
   ALTER TABLE questions ADD COLUMN suggested_answer TEXT;
   `,
+    `
+  CREATE TABLE IF NOT EXISTS case_prep_artifacts (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    snapshot_id TEXT NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+    case_revision INTEGER NOT NULL,
+    basename TEXT NOT NULL UNIQUE,
+    cue_typ_path TEXT NOT NULL UNIQUE,
+    cue_typ_sha256 TEXT NOT NULL,
+    cue_pdf_path TEXT NOT NULL UNIQUE,
+    cue_pdf_sha256 TEXT NOT NULL,
+    cue_page_count INTEGER NOT NULL,
+    stack_manifest_path TEXT NOT NULL UNIQUE,
+    stack_manifest_sha256 TEXT NOT NULL,
+    stack_pdf_path TEXT NOT NULL UNIQUE,
+    stack_pdf_sha256 TEXT NOT NULL,
+    stack_page_count INTEGER NOT NULL,
+    evidence_manifest_json TEXT NOT NULL,
+    superseded_by_case_prep_id TEXT REFERENCES case_prep_artifacts(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (case_id, snapshot_id)
+  ) STRICT;
+
+  CREATE INDEX IF NOT EXISTS case_prep_case_idx
+    ON case_prep_artifacts(case_id, created_at DESC);
+  `,
 ]
 
 export function migrate(database: DatabaseSync): void {

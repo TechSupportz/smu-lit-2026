@@ -102,6 +102,37 @@ describe("immutable evidence uploads", () => {
         }
     })
 
+    it("accepts a Word upload by extension when the browser supplies a generic MIME type", async () => {
+        const { store, dir } = makeStoreSync("evidence-word-mime")
+        try {
+            const service = new EvidenceService(
+                store,
+                testConfig(dir, { openRouterApiKey: "test-key" }),
+            )
+            const created = createCase(store)
+            const record = await service.upload(
+                created.id,
+                upload("supporting-letter.docx", "application/octet-stream", "mock-docx-bytes"),
+                {
+                    expectedRevision: created.revision,
+                    documentType: "LETTER",
+                    description: null,
+                    relevantPages: [],
+                },
+            )
+            expect(record.mimeType).toBe(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+            expect(record.storageKey).toMatch(/\.docx$/)
+            await expect(
+                service.extract(created.id, record.id, store.getCase(created.id).revision),
+            ).rejects.toThrow(/can be included in the tribunal PDF stack/)
+            expect(store.getEvidence(created.id, record.id).processingStatus).toBe("PENDING")
+        } finally {
+            store.close()
+        }
+    })
+
     it("omits unsupported sampling parameters from vision extraction requests", async () => {
         const { store, dir } = makeStoreSync("evidence-vision-request")
         try {

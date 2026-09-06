@@ -23,6 +23,15 @@ const allowedMimeTypes = new Set([
     "image/webp",
     "image/gif",
     "text/plain",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/rtf",
+    "text/rtf",
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ])
 
 const allowedExtensions: Record<string, string> = {
@@ -32,7 +41,36 @@ const allowedExtensions: Record<string, string> = {
     "image/webp": ".webp",
     "image/gif": ".gif",
     "text/plain": ".txt",
+    "application/msword": ".doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/rtf": ".rtf",
+    "text/rtf": ".rtf",
+    "application/vnd.oasis.opendocument.text": ".odt",
+    "application/vnd.ms-powerpoint": ".ppt",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "application/vnd.ms-excel": ".xls",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
 }
+
+const mimeTypeByExtension: Record<string, string> = Object.fromEntries(
+    Object.entries(allowedExtensions).map(([mimeType, extension]) => [extension, mimeType]),
+)
+mimeTypeByExtension[".rtf"] = "application/rtf"
+
+function normalizedMimeType(file: UploadSource): string {
+    const supplied = file.type.toLowerCase().trim()
+    if (allowedMimeTypes.has(supplied)) return supplied
+    return mimeTypeByExtension[extname(file.name).toLowerCase()] ?? supplied
+}
+
+const directlyExtractableMimeTypes = new Set([
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+    "text/plain",
+])
 
 export interface UploadSource {
     name: string
@@ -124,7 +162,7 @@ export class EvidenceService {
         file: UploadSource,
         metadata: UploadMetadata,
     ): Promise<EvidenceRecord> {
-        const mimeType = file.type.toLowerCase()
+        const mimeType = normalizedMimeType(file)
         if (!allowedMimeTypes.has(mimeType)) {
             throw new ProcessingError("Unsupported evidence type", {
                 mimeType,
@@ -172,6 +210,12 @@ export class EvidenceService {
         if (!this.appConfig.openRouterApiKey) {
             throw new ProcessingError(
                 "OPENROUTER_API_KEY is not configured; evidence remains unreviewed and can be retried.",
+            )
+        }
+        if (!directlyExtractableMimeTypes.has(evidence.mimeType)) {
+            throw new ProcessingError(
+                "Office evidence can be included in the tribunal PDF stack, but automatic content extraction is not supported for this file type. Convert it to PDF or an image before requesting extraction.",
+                { mimeType: evidence.mimeType, retryable: false },
             )
         }
         if (evidence.pageCount !== null && evidence.pageCount > this.appConfig.maxEvidencePages) {

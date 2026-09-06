@@ -2,7 +2,7 @@
 
 ## Boundaries
 
-`src/app.ts` is the Hono route map and explicitly mounts Flue's native agent router. `src/db.ts` provides Flue's file-backed SQLite adapter. `src/storage/case-store.ts` owns application persistence and optimistic case revisions; `src/services/*` own deterministic assessment, reconciliation, evidence extraction, allowlisted guidance retrieval, snapshots, and PDF compilation.
+`src/app.ts` is the Hono route map and explicitly mounts Flue's native agent router. `src/db.ts` provides Flue's file-backed SQLite adapter. `src/storage/case-store.ts` owns application persistence and optimistic case revisions; `src/services/*` own deterministic assessment, reconciliation, evidence extraction, allowlisted guidance retrieval, snapshots, PDF compilation, and tribunal-pack assembly.
 
 The application database and Flue database are intentionally separate. The case database is authoritative for user-visible structured state. The conversation only invokes bounded application tools and cannot confirm a fact or acknowledge a warning on the user's behalf.
 
@@ -16,10 +16,12 @@ Warnings use fingerprints derived from their material inputs. Reassessment prese
 
 Evidence originals are byte-hashed and stored using generated paths. Extracted claims retain file/run/page-or-location provenance and do not mutate originals. Document content is always treated as untrusted source material, including text that resembles model instructions.
 
-The main agent uses Muse Spark 1.3 Contributor through OpenCode Go. The provider adapter maps the repository's `OPENCODE_GO_KEY`, identifies the application, and supplies a per-conversation session header. Evidence extraction calls the configured Gemini model through OpenRouter's documented chat-completions PDF/image transport and strict JSON-schema output. Calls have size, page, timeout, and retry bounds; failures remain retryable processing state rather than eligibility failures.
+The main agent and evidence extractor use separately configurable OpenRouter-compatible routes; the current defaults are `openai/gpt-5.6-luna`. The provider adapter maps the repository's `OPENCODE_GO_KEY`, identifies the application, and supplies a per-conversation session header. Evidence extraction uses documented chat-completions PDF/image transport and strict JSON-schema output. Calls have size, page, timeout, and retry bounds; failures remain retryable processing state rather than eligibility failures.
 
 No authenticated provider smoke call has been assumed successful. It must be run with the deployment account and non-sensitive fixtures before provider compatibility, account availability, regional availability, and retention behavior can be considered verified.
 
 ## Artifact safety
 
-Snapshots serialize case text as JSON data. Typst receives only the saved JSON path through `sys.inputs`; case text is never interpolated into Typst source. Compilation is confined to the repository workspace, time-bounded, and checked against the snapshot hash, PDF header, and Poppler page count. A compilation error leaves the JSON snapshot intact.
+Snapshots serialize case text as JSON data. Typst receives only saved paths through `sys.inputs`; case text is never interpolated into Typst source. Compilation is confined to the repository workspace, time-bounded, and checked against snapshot hashes, PDF headers, and Poppler page counts. A compilation error leaves the JSON snapshot intact.
+
+Case preparation is bound to the latest user-reviewed snapshot at the current revision. The pack service verifies that snapshot and its pre-filing PDF, converts each immutable evidence original in upload order, generates a fact-only cue card and an indexed cover, and merges every part with `pdfunite`. LibreOffice conversions use an isolated temporary profile. Temporary normalized copies are deleted after assembly; originals are never changed. Any unsupported or failed conversion aborts the whole pack, and stored cue, manifest, and stack hashes are rechecked before reuse or download.

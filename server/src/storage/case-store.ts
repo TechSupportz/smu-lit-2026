@@ -93,6 +93,38 @@ export interface ProceduralRequirementRecord {
     checkedAt: string
 }
 
+export interface CasePrepEvidenceItem {
+    evidenceId: string
+    originalFilename: string
+    mimeType: string
+    sha256: string
+    normalizedPageCount: number
+    stackStartPage: number
+    stackEndPage: number
+    conversion: "ORIGINAL_PDF" | "IMAGE_TO_PDF" | "OFFICE_TO_PDF" | "TEXT_TO_PDF"
+}
+
+export interface CasePrepRecord {
+    id: string
+    caseId: string
+    snapshotId: string
+    caseRevision: number
+    basename: string
+    cueTypPath: string
+    cueTypSha256: string
+    cuePdfPath: string
+    cuePdfSha256: string
+    cuePageCount: number
+    stackManifestPath: string
+    stackManifestSha256: string
+    stackPdfPath: string
+    stackPdfSha256: string
+    stackPageCount: number
+    evidenceManifest: CasePrepEvidenceItem[]
+    supersededByCasePrepId: string | null
+    createdAt: string
+}
+
 export interface CaseState {
     case: CaseRecord
     parties: PartyRecord[]
@@ -108,6 +140,7 @@ export interface CaseState {
     proceduralRequirements: ProceduralRequirementRecord[]
     warnings: WarningRecord[]
     snapshots: SnapshotRecord[]
+    casePrepArtifacts: CasePrepRecord[]
 }
 
 export interface WarningInput {
@@ -333,6 +366,29 @@ function snapshotFromRow(row: Row): SnapshotRecord {
         supersededBySnapshotId: row.superseded_by_snapshot_id,
         createdAt: row.created_at,
     })
+}
+
+function casePrepFromRow(row: Row): CasePrepRecord {
+    return {
+        id: String(row.id),
+        caseId: String(row.case_id),
+        snapshotId: String(row.snapshot_id),
+        caseRevision: Number(row.case_revision),
+        basename: String(row.basename),
+        cueTypPath: String(row.cue_typ_path),
+        cueTypSha256: String(row.cue_typ_sha256),
+        cuePdfPath: String(row.cue_pdf_path),
+        cuePdfSha256: String(row.cue_pdf_sha256),
+        cuePageCount: Number(row.cue_page_count),
+        stackManifestPath: String(row.stack_manifest_path),
+        stackManifestSha256: String(row.stack_manifest_sha256),
+        stackPdfPath: String(row.stack_pdf_path),
+        stackPdfSha256: String(row.stack_pdf_sha256),
+        stackPageCount: Number(row.stack_page_count),
+        evidenceManifest: parseJson<CasePrepEvidenceItem[]>(row.evidence_manifest_json, []),
+        supersededByCasePrepId: row.superseded_by_case_prep_id as string | null,
+        createdAt: String(row.created_at),
+    }
 }
 
 export class CaseStore {
@@ -1700,6 +1756,88 @@ export class CaseStore {
             .run(errorCode, now(), turnId)
     }
 
+    saveCasePrep(input: Omit<CasePrepRecord, "supersededByCasePrepId">): CasePrepRecord {
+        return this.transaction(() => {
+            this.assertRevision(input.caseId, input.caseRevision)
+            const existing = this.database
+                .prepare("SELECT * FROM case_prep_artifacts WHERE case_id = ? AND snapshot_id = ?")
+                .get(input.caseId, input.snapshotId) as Row | undefined
+            if (existing) return casePrepFromRow(existing)
+            const previous = this.database
+                .prepare(
+                    "SELECT id FROM case_prep_artifacts WHERE case_id = ? ORDER BY created_at DESC LIMIT 1",
+                )
+                .get(input.caseId) as Row | undefined
+            this.database
+                .prepare(
+                    `
+        INSERT INTO case_prep_artifacts (
+          id, case_id, snapshot_id, case_revision, basename,
+          cue_typ_path, cue_typ_sha256, cue_pdf_path, cue_pdf_sha256, cue_page_count,
+          stack_manifest_path, stack_manifest_sha256, stack_pdf_path, stack_pdf_sha256,
+          stack_page_count, evidence_manifest_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+                )
+                .run(
+                    input.id,
+                    input.caseId,
+                    input.snapshotId,
+                    input.caseRevision,
+                    input.basename,
+                    input.cueTypPath,
+                    input.cueTypSha256,
+                    input.cuePdfPath,
+                    input.cuePdfSha256,
+                    input.cuePageCount,
+                    input.stackManifestPath,
+                    input.stackManifestSha256,
+                    input.stackPdfPath,
+                    input.stackPdfSha256,
+                    input.stackPageCount,
+                    JSON.stringify(input.evidenceManifest),
+                    input.createdAt,
+                )
+            if (previous) {
+                this.database
+                    .prepare("UPDATE case_prep_artifacts SET superseded_by_case_prep_id = ? WHERE id = ?")
+                    .run(input.id, previous.id as SQLInputValue)
+            }
+            this.audit(
+                input.caseId,
+                "CASE_PREP_CREATED",
+                "USER",
+                {
+                    casePrepId: input.id,
+                    snapshotId: input.snapshotId,
+                    cuePageCount: input.cuePageCount,
+                    stackPageCount: input.stackPageCount,
+                    evidenceCount: input.evidenceManifest.length,
+                },
+                input.caseRevision,
+            )
+            return this.getCasePrep(input.caseId, input.id)
+        })
+    }
+
+    getCasePrep(caseId: string, casePrepId: string): CasePrepRecord {
+        const row = this.database
+            .prepare("SELECT * FROM case_prep_artifacts WHERE id = ? AND case_id = ?")
+            .get(casePrepId, caseId) as Row | undefined
+        if (!row) throw new NotFoundError("Case preparation", casePrepId)
+        return casePrepFromRow(row)
+    }
+
+    getLatestCasePrep(caseId: string): CasePrepRecord | null {
+        this.getCase(caseId)
+        const row = this.database
+            .prepare(
+                "SELECT * FROM case_prep_artifacts WHERE case_id = ? ORDER BY created_at DESC LIMIT 1",
+            )
+            .get(caseId) as Row | undefined
+        return row ? casePrepFromRow(row) : null
+    }
+
     getCaseState(caseId: string): CaseState {
         const record = this.getCase(caseId)
         const all = (sql: string): Row[] => this.database.prepare(sql).all(caseId)
@@ -1785,6 +1923,9 @@ export class CaseStore {
             snapshots: all(
                 "SELECT * FROM snapshots WHERE case_id = ? ORDER BY created_at DESC",
             ).map(snapshotFromRow),
+            casePrepArtifacts: all(
+                "SELECT * FROM case_prep_artifacts WHERE case_id = ? ORDER BY created_at DESC",
+            ).map(casePrepFromRow),
         }
     }
 
@@ -1802,6 +1943,22 @@ export class CaseStore {
             const snapshotPaths = snapshotRows.flatMap(row =>
                 [row.json_path, row.pdf_path].filter(
                     (value): value is string => typeof value === "string",
+                ),
+            )
+            const casePrepRows = this.database
+                .prepare(
+                    `SELECT cue_typ_path, cue_pdf_path, stack_manifest_path, stack_pdf_path
+                     FROM case_prep_artifacts WHERE case_id = ?`,
+                )
+                .all(caseId) as Row[]
+            snapshotPaths.push(
+                ...casePrepRows.flatMap(row =>
+                    [
+                        row.cue_typ_path,
+                        row.cue_pdf_path,
+                        row.stack_manifest_path,
+                        row.stack_pdf_path,
+                    ].filter((value): value is string => typeof value === "string"),
                 ),
             )
             this.audit(caseId, "CASE_DELETED", "USER", {}, this.getCase(caseId).revision)
