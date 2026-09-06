@@ -85,7 +85,7 @@ export async function createSamplePdf(kind: "filing" | "memo"): Promise<Blob> {
     const title = kind === "filing" ? "Sample filing preparation pack" : "Sample legal memo"
     const lines = [
         title,
-        "CLAIMGUIDE - INTERACTIVE PREVIEW",
+        "ANDREA - INTERACTIVE PREVIEW",
         "",
         "This is a demonstration PDF only.",
         "It does not contain your case details or legal analysis.",

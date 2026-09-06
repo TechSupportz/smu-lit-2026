@@ -1,6 +1,6 @@
 #let source = sys.inputs.at("source")
 #let title = sys.inputs.at("title")
-#set document(title: title, author: "ClaimGuide evidence stack")
+#set document(title: title, author: "Andrea evidence stack")
 #set page(
   paper: "a4",
   margin: (top: 16mm, bottom: 16mm, left: 18mm, right: 18mm),

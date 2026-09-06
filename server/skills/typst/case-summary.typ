@@ -138,7 +138,7 @@
   #notice("Eligibility not fully verified", [Unknown or unavailable inputs prevented a complete eligibility check. Export is permitted with this disclosure; unverified does not mean passed or failed.], tone: "warning")
 ]
 
-= Unresolved warnings
+= Warnings and review notes
 
 #let warnings = data.at("warnings", default: ())
 #if warnings.len() == 0 [
@@ -147,7 +147,7 @@
   for warning in warnings {
     let acknowledged = value(warning, "status") == "ACKNOWLEDGED"
     notice(
-      value(warning, "code") + if acknowledged { " - acknowledged" } else { " - unresolved" },
+      if acknowledged { "Acknowledged review note" } else { "Unresolved review note" },
       [#value(warning, "message")],
       tone: if acknowledged { "warning" } else { "danger" },
     )
@@ -155,23 +155,25 @@
   }
 }
 
-= Parties
+#block(breakable: false)[
+  #heading(level: 1)[Parties]
 
-#let parties = data.at("parties", default: ())
-#if parties.len() == 0 [#empty-row("No parties recorded.")] else {
-  table(
-    columns: (0.8fr, 0.8fr, 1.35fr, 2fr),
-    inset: 5pt,
-    stroke: 0.45pt + rgb("d1d5db"),
-    table.header([*ROLE*], [*TYPE*], [*NAME*], [*ADDRESS / CONTACT*]),
-    ..parties.map(party => (
-      [#value(party, "role")],
-      [#value(party, "kind")],
-      [#value(party, "name")],
-      [#value(party, "address") #linebreak() #value(party, "email", fallback: "")],
-    )).flatten(),
-  )
-}
+  #let parties = data.at("parties", default: ())
+  #if parties.len() == 0 [#empty-row("No parties recorded.")] else {
+    table(
+      columns: (0.8fr, 0.8fr, 1.35fr, 2fr),
+      inset: 5pt,
+      stroke: 0.45pt + rgb("d1d5db"),
+      table.header([*ROLE*], [*TYPE*], [*NAME*], [*ADDRESS / CONTACT*]),
+      ..parties.map(party => (
+        [#value(party, "role")],
+        [#value(party, "kind")],
+        [#value(party, "name")],
+        [#value(party, "address") #linebreak() #value(party, "email", fallback: "")],
+      )).flatten(),
+    )
+  }
+]
 
 = Claim and remedy
 
@@ -200,21 +202,23 @@
   )
 }
 
-= Material facts
+#block(breakable: false)[
+  #heading(level: 1)[Material facts]
 
-#let facts = data.at("facts", default: ())
-#if facts.len() == 0 [#empty-row("No facts recorded.")] else {
-  table(
-    columns: (2.6fr, 0.85fr, 0.85fr, 0.95fr),
-    inset: 5pt,
-    stroke: 0.45pt + rgb("d1d5db"),
-    table.header([*STATEMENT*], [*ORIGIN*], [*USER REVIEW*], [*EVIDENCE*]),
-    ..facts.map(fact => (
-      [#value(fact, "statement")], [#value(fact, "sourceType")],
-      [#value(fact, "reviewStatus")], [#value(fact, "evidenceAssessment")],
-    )).flatten(),
-  )
-}
+  #let facts = data.at("facts", default: ())
+  #if facts.len() == 0 [#empty-row("No facts recorded.")] else {
+    table(
+      columns: (2.6fr, 0.85fr, 0.85fr, 0.95fr),
+      inset: 5pt,
+      stroke: 0.45pt + rgb("d1d5db"),
+      table.header([*STATEMENT*], [*ORIGIN*], [*USER REVIEW*], [*EVIDENCE*]),
+      ..facts.map(fact => (
+        [#value(fact, "statement")], [#value(fact, "sourceType")],
+        [#value(fact, "reviewStatus")], [#value(fact, "evidenceAssessment")],
+      )).flatten(),
+    )
+  }
+]
 
 = Timeline
 
@@ -282,22 +286,24 @@
   list(..contradictions.map(conflict => [*#value(conflict, "severity")* - #value(conflict, "description") (#value(conflict, "status"))]))
 }
 
-= Procedural checks
+#block(breakable: false)[
+  #heading(level: 1)[Procedural checks]
 
-#let checks = data.at("proceduralChecks", default: ())
-#if checks.len() == 0 [#empty-row("No procedural checks recorded.")] else {
-  table(
-    columns: (1fr, 0.75fr, 2.6fr, 1.1fr),
-    inset: 5pt,
-    stroke: 0.45pt + rgb("d1d5db"),
-    table.header([*CHECK*], [*RESULT*], [*EXPLANATION*], [*RETRIEVAL*]),
-    ..checks.map(item => (
-      [#value(item, "code").replace("_", " ")], [#value(item, "result")],
-      [#value(item, "explanation") #linebreak() #text(size: 6.8pt, fill: rgb("6b7280"))[#value(item, "sourceUrl")]],
-      [#value(item, "retrievalStatus")],
-    )).flatten(),
-  )
-}
+  #let checks = data.at("proceduralChecks", default: ())
+  #if checks.len() == 0 [#empty-row("No procedural checks recorded.")] else {
+    table(
+      columns: (1fr, 0.75fr, 2.6fr, 1.1fr),
+      inset: 5pt,
+      stroke: 0.45pt + rgb("d1d5db"),
+      table.header([*CHECK*], [*RESULT*], [*EXPLANATION*], [*RETRIEVAL*]),
+      ..checks.map(item => (
+        [#value(item, "code").replace("_", " ")], [#value(item, "result")],
+        [#value(item, "explanation") #linebreak() #text(size: 6.8pt, fill: rgb("6b7280"))[#value(item, "sourceUrl")]],
+        [#value(item, "retrievalStatus")],
+      )).flatten(),
+    )
+  }
+]
 
 = Review record and limitations
 

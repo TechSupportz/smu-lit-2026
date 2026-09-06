@@ -2,7 +2,7 @@
 
 Branch `case-prep`. PRD: `server/.context/prd-01.md`.
 
-**What we are proving:** A self-represented consumer can turn the supplied beauty-package hypothetical into a cautious, reviewable CPFTA/service claim, complete the gated filing journey, and download a usable tribunal cue card and combined PDF pack. ClaimGuide must preserve uncertainty instead of deciding that pressure, deception, or a CPFTA violation occurred.
+**What we are proving:** A self-represented consumer can turn the supplied beauty-package hypothetical into a cautious, reviewable CPFTA/service claim, complete the gated filing journey, and download a usable tribunal cue card and combined PDF pack. Andrea must preserve uncertainty instead of deciding that pressure, deception, or a CPFTA violation occurred.
 
 **What changed:** The current branch adds the end-of-flow case-preparation stage, a one-page tribunal cue card, individual downloads, and one indexed PDF stack containing the cue card, pre-filing summary, and available evidence.
 
@@ -27,7 +27,7 @@ Work through the parts in order. Part 3 is the actual test; everything before it
 ## Part 2 — Fixtures
 
 - [ ] **2.1** Choose and write down **T0**, any date within the previous 90 days, and **T1**, the next calendar day. Use those two dates consistently below. The shifted dates preserve the hypothetical's sequence without making the happy path expire as the repository ages.
-- [ ] **2.2** Because ClaimGuide cannot create an evidence file through its UI, use a local document editor to make a one-page test document with the exact content below, export it as PDF, and save it as `server/mock/hypo-beauty-package-receipt.pdf`. Keep it under 5 MB. Label it prominently as mock evidence so it cannot be mistaken for a real receipt.
+- [ ] **2.2** Because Andrea cannot create an evidence file through its UI, use a local document editor to make a one-page test document with the exact content below, export it as PDF, and save it as `server/mock/hypo-beauty-package-receipt.pdf`. Keep it under 5 MB. Label it prominently as mock evidence so it cannot be mistaken for a real receipt.
 
   ```text
   MOCK EVIDENCE — NOT A REAL RECEIPT
@@ -41,11 +41,11 @@ Work through the parts in order. Part 3 is the actual test; everything before it
 
 - [ ] **2.3** On the landing page, click `Let's work it out`. → Step 1 opens with the embedded `A little about your claim` eligibility form. Use this entry point because `An unfair sales practice` is available in the form but not as a landing-page shortcut.
 - [ ] **2.4** Enter claim amount `6500`, choose **T0** for `When did the issue arise?`, choose `An unfair sales practice`, select `Yes, in Singapore`, and click `Check eligibility`. → The amount, time, respondent-location, and dispute-type checks pass, and the conversation becomes available. If the time check does not pass, first verify that T0 was entered correctly and is not in the future; that is fixture failure, not the intake test.
-- [ ] **2.5** In `Message ClaimGuide`, send the following account after replacing T0 and T1 with the dates recorded in 2.1:
+- [ ] **2.5** In `Message Andrea`, send the following account after replacing T0 and T1 with the dates recorded in 2.1:
 
   > I am using the test alias JFL. I am an elderly, primarily Mandarin-speaking consumer and understand little English. On T0, I went to JFM's Store 1 at Mall X in Singapore to redeem a free facial voucher. The facial took place in a private room. Afterwards, two consultants, M and R, gave me a sales pitch in Mandarin in the open area near the entrance, applied a facial cream, and gave a massage. After negotiation, I agreed to buy the TL Set for S$6,500, with Device A and 15 facial sessions described as complimentary. I paid S$2,000 by NETS and S$4,500 in cash. M showed me the nearby Bank Y branch; I entered alone, withdrew cash, returned, paid the balance, and signed a receipt saying there would be no refunds of products or services. At home, my daughter told me she thought I had been scammed. On T1, I returned to ask for a full refund, but we did not reach a compromise. I later made a police report and a CASE complaint. I want a full refund of S$6,500. The hypothetical does not record the consultants' exact words, how long the pitch lasted, whether I tried to leave, whether the receipt was explained in Mandarin, or direct evidence of pressure. Keep those points unknown and ask me rather than inventing them. I want factual preparation, not a prediction of whether I will win.
 
-  → ClaimGuide responds in plain language or asks one focused question. It must not say that the sales conduct was unlawful, that the claimant was definitely scammed, or that the claim will succeed or fail.
+  → Andrea responds in plain language or asks one focused question. It must not say that the sales conduct was unlawful, that the claimant was definitely scammed, or that the claim will succeed or fail.
 - [ ] **2.6** Click `Attach a file` and select `server/mock/hypo-beauty-package-receipt.pdf`. → A ready evidence card with that filename appears in the conversation and in `Your case at a glance`. If the file is rejected, first check that it is a PDF below 5 MB; rejection of this exact fixture is an upload failure.
 - [ ] **2.7** Continue answering every displayed `A question about your claim` card. Use `Not recorded in this hypothetical` where the source does not supply an answer, especially for the exact alleged pressure or representation, duration of the pitch, attempts to leave, language used to explain the receipt, exact registered/service address, and what happened to the products after purchase. Click `Next` between questions and `Use these answers` on the final question. → Answers remain attributed to the user, and unknown details remain visibly unknown rather than being converted into facts.
 - [ ] **2.8** Continue until `Your case at a glance` shows: dispute type `An unfair sales practice`, amount `S$6,500`, respondent `JFM`, a factual summary, and a requested full refund; no required questionnaire remains open; and `Prepare filing summary` is enabled. The assistant may ask questions in a different order, so verify this end state rather than expecting fixed wording.

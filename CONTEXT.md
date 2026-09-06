@@ -53,7 +53,7 @@ Alleged supplier conduct assessed against the Consumer Protection (Fair Trading)
 ## Frontend-only post-filing language
 
 **Filing checkpoint**:
-The saved milestone after filing preparation that lists actions the claimant must complete outside ClaimGuide before proceeding to case preparation. The claimant may return to it in a later sitting.
+The saved milestone after filing preparation that lists actions the claimant must complete outside Andrea before proceeding to case preparation. The claimant may return to it in a later sitting.
 _Avoid_: Save state
 
 **Case preparation**:

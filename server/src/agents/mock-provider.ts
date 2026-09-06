@@ -7,6 +7,7 @@ import {
     type Context,
     type Message,
 } from "@earendil-works/pi-ai"
+import { developerOverrideInstruction } from "./policy.js"
 
 const MOCK_PROVIDER_ID = "claimguide-mock"
 const MOCK_MODEL_ID = "scripted-intake"
@@ -79,11 +80,42 @@ function findRevision(value: unknown, depth = 0): number | null {
     return null
 }
 
+function findStringField(value: unknown, field: string, depth = 0): string | null {
+    if (depth > 8 || value === null) return null
+    if (typeof value === "string") {
+        try {
+            return findStringField(JSON.parse(value) as unknown, field, depth + 1)
+        } catch {
+            return null
+        }
+    }
+    if (typeof value !== "object") return null
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const found = findStringField(item, field, depth + 1)
+            if (found !== null) return found
+        }
+        return null
+    }
+    const record = value as Record<string, unknown>
+    if (typeof record[field] === "string") return record[field]
+    for (const entry of Object.values(record)) {
+        const found = findStringField(entry, field, depth + 1)
+        if (found !== null) return found
+    }
+    return null
+}
+
 export function extractRevision(message: Message): number | null {
     if (message.role !== "toolResult") return null
     // Inspect the whole message as well as its text. Flue may put structured tool
     // data in `details`, and string-returning tools can arrive JSON-encoded twice.
     return findRevision(message)
+}
+
+export function extractSnapshotId(message: Message): string | null {
+    if (message.role !== "toolResult") return null
+    return findStringField(message, "id")
 }
 
 function withThinking(text: string): AssistantMessage {
@@ -101,6 +133,79 @@ function mockResponse(
     const latest = context.messages.at(-1)
     const userText = latestUserText(context)
     const toolId = `mock-tool-${state.callCount}`
+
+    const override = developerOverrideInstruction(userText)
+    if (override) {
+        return withThinking(`Developer override accepted for this request: ${override}`)
+    }
+
+    const preparePrefiling = userText.startsWith("[andrea-action:prepare-prefiling]")
+    const prepareCasePack = userText.startsWith("[andrea-action:prepare-case-pack]")
+
+    if ((preparePrefiling || prepareCasePack) && latest?.role === "user") {
+        return fauxAssistantMessage(fauxToolCall("get_case_state", {}, { id: toolId }), {
+            stopReason: "toolUse",
+        })
+    }
+
+    if (
+        (preparePrefiling || prepareCasePack) &&
+        latest?.role === "toolResult" &&
+        latest.toolName === "get_case_state"
+    ) {
+        const revision = extractRevision(latest)
+        if (revision === null) {
+            return withThinking(
+                "I could not verify the current case revision, so no PDF was generated.",
+            )
+        }
+        return fauxAssistantMessage(
+            fauxToolCall(
+                preparePrefiling ? "save_final_prefiling_state" : "prepare_tribunal_case_pack",
+                { expectedRevision: revision },
+                { id: toolId },
+            ),
+            { stopReason: "toolUse" },
+        )
+    }
+
+    if (
+        preparePrefiling &&
+        latest?.role === "toolResult" &&
+        latest.toolName === "save_final_prefiling_state"
+    ) {
+        if (latest.isError) {
+            return withThinking("The reviewed snapshot could not be created, so no PDF was generated.")
+        }
+        const snapshotId = extractSnapshotId(latest)
+        if (!snapshotId) {
+            return withThinking("The snapshot result had no ID, so no PDF was generated.")
+        }
+        return fauxAssistantMessage(
+            fauxToolCall("compile_snapshot_pdf", { snapshotId }, { id: toolId }),
+            { stopReason: "toolUse" },
+        )
+    }
+
+    if (
+        preparePrefiling &&
+        latest?.role === "toolResult" &&
+        latest.toolName === "compile_snapshot_pdf"
+    ) {
+        return latest.isError
+            ? withThinking("The snapshot was saved, but PDF compilation failed.")
+            : withThinking("Your pre-filing summary PDF was generated from the reviewed case.")
+    }
+
+    if (
+        prepareCasePack &&
+        latest?.role === "toolResult" &&
+        latest.toolName === "prepare_tribunal_case_pack"
+    ) {
+        return latest.isError
+            ? withThinking("The tribunal case pack could not be generated.")
+            : withThinking("Your cue card and tribunal case pack were generated from the reviewed case.")
+    }
 
     if (latest?.role === "toolResult" && latest.toolName === "get_case_state") {
         const revision = extractRevision(latest)
@@ -220,7 +325,7 @@ export function createMockAgentProvider() {
         models: [
             {
                 id: MOCK_MODEL_ID,
-                name: "ClaimGuide scripted intake",
+                name: "Andrea scripted intake",
                 reasoning: true,
                 input: ["text", "image"],
             },

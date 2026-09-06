@@ -4,7 +4,7 @@
 }
 
 #let render-cue-card(data) = {
-  set document(title: "Tribunal Cue Card", author: "ClaimGuide")
+  set document(title: "Tribunal Cue Card", author: "Andrea")
   set page(
     paper: "a4",
     margin: (top: 8mm, bottom: 10mm, left: 10mm, right: 10mm),

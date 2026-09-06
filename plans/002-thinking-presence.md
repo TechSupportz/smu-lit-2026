@@ -4,7 +4,7 @@ Status: DONE
 
 Implemented in `Chat.tsx` and `index.css`: pending work renders in the assistant
 lane with the same avatar and a reserved footprint, labelled
-`ClaimGuide is thinking` until the response's first text arrives (derived from
+`Andrea is thinking` until the response's first text arrives (derived from
 the raw message list so a hidden control prompt still counts as a pending turn).
 Dots animate opacity and `translateY` only over 800ms `var(--ease-in-out)` with
 80ms stagger, are `aria-hidden`, and the conversation is a polite
@@ -31,7 +31,7 @@ The current streaming indicator is a small line of static dots, so waiting looks
 ## Implementation
 
 1. Present pending work in the assistant-message lane, with the same avatar and bubble alignment as a response.
-2. Use the label `ClaimGuide is thinking` while waiting for the first response content. Replace/remove it as soon as the response bubble appears.
+2. Use the label `Andrea is thinking` while waiting for the first response content. Replace/remove it as soon as the response bubble appears.
 3. Animate three dot elements with opacity and `translateY` only. Use `800ms` cycles, `var(--ease-in-out)`, and `80ms` staggered delays; never animate layout properties.
 4. Mark the conversation `role="log"`, `aria-live="polite"`, and `aria-relevant="additions text"`. Give the visual dots `aria-hidden="true"` and expose one concise status label.
 5. Do not animate streamed Markdown tokens or auto-scroll with an unconditional smooth behavior.

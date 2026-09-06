@@ -4,7 +4,7 @@
 }
 
 #let manifest = json(sys.inputs.at("manifest"))
-#set document(title: "Tribunal Case Pack Index", author: "ClaimGuide")
+#set document(title: "Tribunal Case Pack Index", author: "Andrea")
 #set page(paper: "a4", margin: (top: 18mm, bottom: 18mm, left: 18mm, right: 18mm))
 #set text(font: "Libertinus Serif", size: 10pt, fill: rgb("111827"), lang: "en")
 #set par(leading: 0.68em)

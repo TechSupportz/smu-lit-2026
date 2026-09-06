@@ -4,8 +4,10 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Checkbox } from "./ui/checkbox"
 import { useCase } from "@/lib/store"
-import { assessBackendEligibility } from "@/lib/backend"
+import { assessBackendEligibility, loadPrefilledHaircutPackage } from "@/lib/backend"
 import { categories } from "@/lib/types"
+const prefilledMode = import.meta.env.VITE_PREFILLED === "true"
+
 export function Eligibility({
     onError,
     embedded = false,
@@ -22,6 +24,7 @@ export function Eligibility({
         backendCaseId,
         backendCreateKey,
         syncBackendCase,
+        seedPrefilledHaircutConversation,
     } = useCase()
     const [checking, setChecking] = useState(false)
     const passed = checks.every(c => c.status === "passed")
@@ -53,6 +56,28 @@ export function Eligibility({
             consent: false,
         })
     }
+    async function loadDemo() {
+        setAnswers({
+            amount: "100",
+            eventDate: "2025-10-23",
+            respondentInSingapore: "yes",
+            category: "unfair",
+            consent: false,
+        })
+        setChecking(true)
+        try {
+            syncBackendCase(await loadPrefilledHaircutPackage(backendCreateKey))
+            seedPrefilledHaircutConversation()
+        } catch (error) {
+            onError(
+                error instanceof Error
+                    ? error.message
+                    : "The prefilled haircut case could not be loaded.",
+            )
+        } finally {
+            setChecking(false)
+        }
+    }
     return (
         <div className={embedded ? "eligibility-in-chat" : "stage-content"}>
             {!embedded && (
@@ -76,7 +101,7 @@ export function Eligibility({
                     <ShieldCheck size={18} />
                 </span>
                 <div>
-                    <strong>ClaimGuide</strong>
+                    <strong>Andrea</strong>
                     <p>
                         {embedded
                             ? "Before we begin, tell me a few basics so I can check whether this is the right path for your claim."
@@ -205,6 +230,11 @@ export function Eligibility({
                         <Button type="button" variant="ghost" onClick={sample}>
                             Use example details
                         </Button>
+                    {prefilledMode && (
+                            <Button type="button" variant="ghost" onClick={() => void loadDemo()}>
+                                Load prefilled haircut case
+                            </Button>
+                        )}
                     </div>
                 </fieldset>
             </form>

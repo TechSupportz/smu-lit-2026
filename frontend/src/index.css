@@ -821,6 +821,7 @@ textarea {
     font: inherit;
     font-size: 12px;
     line-height: 1.55;
+    min-height: 1lh;
     resize: none;
     outline: none;
     overflow-y: hidden;

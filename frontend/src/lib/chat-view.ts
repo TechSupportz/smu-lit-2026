@@ -21,6 +21,34 @@ export type TranscriptEntryInput = Omit<TranscriptEntry, "at">
 
 export type AnsweredQuestion = { id: string; question: string; answer: string }
 
+/** A demo-only message persisted in the browser alongside the case navigation state. */
+export type LocalChatMessage = {
+    id: string
+    role: "user" | "assistant"
+    text: string
+}
+
+/** Only files selected for the next message belong in the composer attachment tray. */
+export function selectPendingAttachments<T extends { id: string }>(
+    files: readonly T[],
+    pendingIds: readonly string[],
+): T[] {
+    const pending = new Set(pendingIds)
+    return files.filter(file => pending.has(file.id))
+}
+
+/**
+ * Clear the attachments admitted with one message without removing files that
+ * were selected while that message was being submitted.
+ */
+export function clearSubmittedAttachments(
+    pendingIds: readonly string[],
+    submittedIds: readonly string[],
+): string[] {
+    const submitted = new Set(submittedIds)
+    return pendingIds.filter(id => !submitted.has(id))
+}
+
 export type TranscriptItem<M> =
     | { kind: "message"; key: string; message: M }
     | { kind: "answer"; key: string; question: string; answer: string }

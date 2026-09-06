@@ -263,6 +263,27 @@ export async function getBackendCase(caseId: string): Promise<BackendCaseState> 
     return request(`/cases/${encodeURIComponent(caseId)}`)
 }
 
+/** Record the user's explicit final-review action before asking Flue to generate artifacts. */
+export async function markBackendCaseReviewed(caseId: string): Promise<BackendCaseState> {
+    const state = await getBackendCase(caseId)
+    if (state.case.userReviewed) return state
+    return request(
+        `/cases/${encodeURIComponent(caseId)}`,
+        json("PATCH", {
+            expectedRevision: state.case.revision,
+            patch: { userReviewed: true },
+        }),
+    )
+}
+
+/** Load the gated, fictional salon-package case used for the prefilled walkthrough. */
+export async function loadPrefilledHaircutPackage(idempotencyKey: string): Promise<BackendCaseState> {
+    return request(
+        "/prefilled/scenarios/haircut-package",
+        json("POST", { idempotencyKey: `haircut-prefilled:${idempotencyKey}` }),
+    )
+}
+
 export async function assessBackendEligibility(
     answers: EligibilityAnswers,
     caseId: string | null,
@@ -385,50 +406,6 @@ export async function uploadBackendEvidence(caseId: string, file: File): Promise
     form.set("expectedRevision", String(current.case.revision))
     form.set("relevantPages", "[]")
     return request(`/cases/${encodeURIComponent(caseId)}/evidence`, { method: "POST", body: form })
-}
-
-export async function createBackendPdf(
-    caseId: string,
-): Promise<{ blob: Blob; filename: string; state: BackendCaseState }> {
-    let state = await getBackendCase(caseId)
-    const pendingFact = state.facts.some(fact => fact.material && fact.reviewStatus === "PENDING")
-    const openQuestion = state.questions.some(
-        question => question.priority === "REQUIRED" && question.status === "OPEN",
-    )
-    if (pendingFact || openQuestion) {
-        throw new Error("Review the pending facts and required questions before preparing the PDF.")
-    }
-    state = await request(
-        `/cases/${encodeURIComponent(caseId)}`,
-        json("PATCH", {
-            expectedRevision: state.case.revision,
-            patch: { userReviewed: true },
-        }),
-    )
-    const created = await request<{ record: { id: string; basename: string } }>(
-        `/cases/${encodeURIComponent(caseId)}/snapshots`,
-        json("POST", {
-            expectedRevision: state.case.revision,
-        }),
-    )
-    await request(
-        `/cases/${encodeURIComponent(caseId)}/snapshots/${encodeURIComponent(created.record.id)}/pdf`,
-        { method: "POST" },
-    )
-    const response = await fetch(
-        `${backendBaseUrl}/cases/${encodeURIComponent(caseId)}/snapshots/${encodeURIComponent(created.record.id)}/pdf`,
-    )
-    if (!response.ok) throw new Error(`The PDF download failed (${response.status}).`)
-    return {
-        blob: await response.blob(),
-        filename: `${created.record.basename}.pdf`,
-        state: await getBackendCase(caseId),
-    }
-}
-
-/** Generate the court-day cue card and the combined evidence PDF stack. */
-export async function generateCasePrep(caseId: string): Promise<CasePrepBundle> {
-    return request(`/cases/${encodeURIComponent(caseId)}/case-prep`, { method: "POST" })
 }
 
 /** Return the latest generated case-prep artifacts, if the backend has one. */
