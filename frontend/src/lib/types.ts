@@ -9,6 +9,18 @@ export type EligibilityAnswers = {
 }
 export type EligibilityCheck = { id: string; label: string; status: CheckStatus; detail?: string }
 export type CaseDetails = { respondent: string; summary: string; outcome: string }
+export type CasePrepArtifact = {
+    filename: string
+    sha256: string
+    pageCount: number
+    url: string
+}
+export type CasePrepBundle = {
+    cueCard: CasePrepArtifact
+    stack: CasePrepArtifact
+    prefiling: { filename: string; url: string } | null
+    evidence: Array<{ id: string; originalFilename: string; url: string }>
+}
 export type CaseFile = {
     id: string
     name: string

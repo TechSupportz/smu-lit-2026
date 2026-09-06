@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
     ArrowRight,
     ArrowUpRight,
@@ -10,6 +10,10 @@ import {
     Bookmark,
     ExternalLink,
     MessageCircle,
+    Download,
+    Eye,
+    LoaderCircle,
+    PackageOpen,
 } from "lucide-react"
 import { useCase } from "@/lib/store"
 import { checklistItems } from "@/lib/types"
@@ -17,8 +21,148 @@ import { Button } from "./ui/button"
 import { Checkbox } from "./ui/checkbox"
 import { Input } from "./ui/input"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog"
-import { readBlob } from "@/lib/storage"
 import { FileCard } from "./FileCard"
+import {
+    downloadCasePrepCueCard,
+    downloadCasePrepEvidence,
+    downloadCasePrepPrefiling,
+    downloadCasePrepStack,
+    getCasePrep,
+    getCasePrepCueCard,
+} from "@/lib/backend"
+import type { CasePrepBundle } from "@/lib/types"
+
+function CasePrepAssets({
+    bundle,
+    loading,
+    onPreview,
+    onDownloadCueCard,
+    onDownloadStack,
+    onError,
+}: {
+    bundle: CasePrepBundle | null
+    loading: boolean
+    onPreview: () => void
+    onDownloadCueCard: () => void
+    onDownloadStack: () => void
+    onError: (message: string) => void
+}) {
+    if (loading) {
+        return (
+            <div className="case-prep-loading" role="status">
+                <LoaderCircle size={18} className="spin" />
+                Loading your case-prep pack…
+            </div>
+        )
+    }
+    if (!bundle) {
+        return (
+            <div className="case-prep-empty">
+                <PackageOpen size={22} />
+                <div>
+                    <strong>Your case-prep pack is not available yet.</strong>
+                    <p>Return to the case-preparation conversation and generate it again.</p>
+                </div>
+            </div>
+        )
+    }
+    const downloadPrefiling = async () => {
+        if (!bundle.prefiling) return
+        try {
+            await downloadCasePrepPrefiling(bundle.prefiling)
+        } catch (error) {
+            onError(error instanceof Error ? error.message : "The pre-filing PDF could not be downloaded.")
+        }
+    }
+    const downloadEvidence = async (item: CasePrepBundle["evidence"][number]) => {
+        try {
+            await downloadCasePrepEvidence(item)
+        } catch (error) {
+            onError(error instanceof Error ? error.message : "The evidence file could not be downloaded.")
+        }
+    }
+    return (
+        <div className="case-prep-assets">
+            <div className="section-title-row">
+                <div>
+                    <h2>Your court-day pack</h2>
+                    <p className="section-kicker">Generated from your reviewed case and evidence.</p>
+                </div>
+                <span>
+                    <PackageOpen size={15} />
+                    {bundle.evidence.length} {bundle.evidence.length === 1 ? "evidence file" : "evidence files"}
+                </span>
+            </div>
+            <div className="case-prep-hero">
+                <div className="case-prep-hero-copy">
+                    <span className="case-prep-icon"><FileText size={22} /></span>
+                    <div>
+                        <strong>One PDF stack for the tribunal</strong>
+                        <p>{bundle.stack.pageCount} pages · Includes your pre-filing PDF and all available evidence.</p>
+                    </div>
+                </div>
+                <Button onClick={onDownloadStack}>
+                    <Download size={16} />
+                    Download full stack
+                </Button>
+            </div>
+            <div className="case-prep-grid">
+                <article className="case-prep-card cue-card-card">
+                    <div className="case-prep-card-heading">
+                        <span className="case-prep-icon soft"><Bookmark size={18} /></span>
+                        <div>
+                            <h3>Cue card</h3>
+                            <p>{bundle.cueCard.pageCount} {bundle.cueCard.pageCount === 1 ? "page" : "pages"} · {bundle.cueCard.filename}</p>
+                        </div>
+                    </div>
+                    <p className="case-prep-card-copy">A compact reminder of your timeline, key points and the outcome you’re asking for.</p>
+                    <div className="case-prep-card-actions">
+                        <Button variant="outline" onClick={onPreview}>
+                            <Eye size={16} /> Preview cue card
+                        </Button>
+                        <Button variant="ghost" onClick={onDownloadCueCard} aria-label={`Download ${bundle.cueCard.filename}`}>
+                            <Download size={16} /> Download
+                        </Button>
+                    </div>
+                </article>
+                <article className="case-prep-card">
+                    <div className="case-prep-card-heading">
+                        <span className="case-prep-icon soft"><FileText size={18} /></span>
+                        <div>
+                            <h3>Pre-filing form</h3>
+                            <p>{bundle.prefiling ? bundle.prefiling.filename : "Not available"}</p>
+                        </div>
+                    </div>
+                    <p className="case-prep-card-copy">Keep the current pre-filing summary with the other documents you bring.</p>
+                    {bundle.prefiling ? (
+                        <Button variant="outline" onClick={() => void downloadPrefiling()}>
+                            <Download size={16} /> Download pre-filing PDF
+                        </Button>
+                    ) : <span className="case-prep-unavailable">No compiled pre-filing PDF yet.</span>}
+                </article>
+            </div>
+            <div className="case-prep-evidence">
+                <div className="section-title-row">
+                    <h3>Original evidence files</h3>
+                    <span>Download individually</span>
+                </div>
+                {bundle.evidence.length === 0 ? (
+                    <p className="field-hint">No evidence was attached to this case.</p>
+                ) : bundle.evidence.map(item => (
+                    <div className="case-prep-evidence-row" key={item.id}>
+                        <FileText size={17} />
+                        <span title={item.originalFilename}>{item.originalFilename}</span>
+                        <Button variant="ghost" size="icon" onClick={() => void downloadEvidence(item)} aria-label={`Download ${item.originalFilename}`}>
+                            <Download size={16} />
+                        </Button>
+                    </div>
+                ))}
+                <p className="field-hint">The full PDF stack is the easiest way to print everything together. Original files are also available above for your records.</p>
+            </div>
+        </div>
+    )
+}
+
 export function Checkpoint({
     final = false,
     onError,
@@ -26,30 +170,71 @@ export function Checkpoint({
     final?: boolean
     onError: (s: string) => void
 }) {
-    const { files, checklist, toggleItem, consultationDate, setConsultationDate, go } = useCase()
+    const {
+        files,
+        checklist,
+        toggleItem,
+        consultationDate,
+        setConsultationDate,
+        go,
+        backendCaseId,
+        casePrep: savedCasePrep,
+        setCasePrep,
+    } = useCase()
     const [preview, setPreview] = useState<string | null>(null)
+    const [casePrep, setLocalCasePrep] = useState<CasePrepBundle | null>(savedCasePrep)
+    const [prepLoading, setPrepLoading] = useState(final && !savedCasePrep && Boolean(backendCaseId))
     const generated = files.filter(f => f.kind === "generated")
     const count = checklistItems.filter(item => checklist.includes(item.id)).length
-    const visibleFiles = generated.filter(f => f.name.includes(final ? "memo" : "filing"))
-    const latestMemo = [...generated]
-        .reverse()
-        .find(f => f.name.includes("memo") && f.status === "ready")
-    async function openPreview() {
-        if (!latestMemo) return
-        try {
-            const blob = await readBlob(latestMemo.id)
-            if (!blob)
-                throw new Error(
-                    "The PDF is no longer available on this browser. Return to your conversation and prepare it again.",
-                )
-            setPreview(URL.createObjectURL(blob))
-        } catch (e) {
-            onError((e as Error).message)
-        }
-    }
+    const visibleFiles = generated.filter(f => f.name.includes("filing"))
+    useEffect(() => {
+        setLocalCasePrep(savedCasePrep)
+    }, [savedCasePrep])
+    useEffect(() => {
+        if (!final || !backendCaseId || casePrep) return
+        setPrepLoading(true)
+        void getCasePrep(backendCaseId)
+            .then(bundle => {
+                setLocalCasePrep(bundle)
+                setCasePrep(bundle)
+            })
+            .catch(error =>
+                onError(
+                    error instanceof Error
+                        ? error.message
+                        : "Your case-prep pack could not be loaded.",
+                ),
+            )
+            .finally(() => setPrepLoading(false))
+    }, [backendCaseId, casePrep, final, onError, setCasePrep])
     function closePreview() {
         if (preview) URL.revokeObjectURL(preview)
         setPreview(null)
+    }
+    async function previewCueCard() {
+        if (!backendCaseId) return onError("Your case is not connected to the backend yet.")
+        try {
+            const blob = await getCasePrepCueCard(backendCaseId)
+            setPreview(URL.createObjectURL(blob))
+        } catch (error) {
+            onError(error instanceof Error ? error.message : "The cue card could not be opened.")
+        }
+    }
+    async function downloadCueCard() {
+        if (!casePrep || !backendCaseId) return
+        try {
+            await downloadCasePrepCueCard(backendCaseId, casePrep.cueCard.filename)
+        } catch (error) {
+            onError(error instanceof Error ? error.message : "The cue card could not be downloaded.")
+        }
+    }
+    async function downloadStack() {
+        if (!casePrep || !backendCaseId) return
+        try {
+            await downloadCasePrepStack(backendCaseId, casePrep.stack.filename)
+        } catch (error) {
+            onError(error instanceof Error ? error.message : "The PDF stack could not be downloaded.")
+        }
     }
     return (
         <div className="stage-content checkpoint-content">
@@ -60,9 +245,9 @@ export function Checkpoint({
             <h1>
                 {final ? (
                     <>
-                        A clearer picture.
+                        Ready for the day
                         <br />
-                        Your next step awaits.
+                        in court.
                     </>
                 ) : (
                     <>
@@ -74,7 +259,7 @@ export function Checkpoint({
             </h1>
             <p className="stage-description">
                 {final
-                    ? "Your document is ready. Take a moment to review it, and keep a copy with your case papers."
+                    ? "Your cue card and complete PDF stack are ready. Download what you need, review the details, and bring the pack with your case papers."
                     : "Your progress is saved. Complete these steps through the court, then come back when you’re ready to prepare your case."}
             </p>
             {!final && (
@@ -90,27 +275,31 @@ export function Checkpoint({
                 </div>
             )}
             <section className="checkpoint-section">
-                <div className="section-title-row">
-                    <h2>{final ? "Your legal memo" : "Your documents"}</h2>
-                    <span>
-                        <FolderOpen size={15} />
-                        {visibleFiles.length} {visibleFiles.length === 1 ? "file" : "files"}
-                    </span>
-                </div>
-                {visibleFiles.map(f => (
-                    <FileCard key={f.id} file={f} onError={onError} />
-                ))}
-                <p className="field-hint">
-                    {final
-                        ? "This remains a clearly marked local sample because the current backend is pre-filing only."
-                        : "This preparation summary was generated from the backend case. It is not an official court form or evidence of filing."}
-                </p>
-                {final && latestMemo && (
-                    <Button variant="outline" onClick={() => void openPreview()}>
-                        <FileText size={16} />
-                        Preview PDF
-                        <ArrowUpRight size={15} />
-                    </Button>
+                {final ? (
+                    <CasePrepAssets
+                        bundle={casePrep}
+                        loading={prepLoading}
+                        onPreview={() => void previewCueCard()}
+                        onDownloadCueCard={() => void downloadCueCard()}
+                        onDownloadStack={() => void downloadStack()}
+                        onError={onError}
+                    />
+                ) : (
+                    <>
+                        <div className="section-title-row">
+                            <h2>Your documents</h2>
+                            <span>
+                                <FolderOpen size={15} />
+                                {visibleFiles.length} {visibleFiles.length === 1 ? "file" : "files"}
+                            </span>
+                        </div>
+                        {visibleFiles.map(f => (
+                            <FileCard key={f.id} file={f} onError={onError} />
+                        ))}
+                        <p className="field-hint">
+                            This preparation summary was generated from the backend case. It is not an official court form or evidence of filing.
+                        </p>
+                    </>
                 )}
             </section>
             {!final ? (
@@ -210,14 +399,14 @@ export function Checkpoint({
                     <section className="checkpoint-section">
                         <div className="section-title-row">
                             <h2>A few things to keep in mind</h2>
-                            <span>No more checklists.</span>
+                            <span>Before your consultation</span>
                         </div>
                         <div className="guidance-list">
                             {[
                                 {
                                     icon: FileText,
-                                    title: "Read through your document",
-                                    text: "Check the facts, dates and amounts against your own records. Keep your supporting evidence and original documents organised.",
+                                    title: "Review the cue card",
+                                    text: "Check the facts, dates and amounts against your own records. The cue card is a reminder, not a script or legal advice.",
                                     href: "https://www.judiciary.gov.sg/civil/before-going-to-court-small-claim",
                                 },
                                 {
@@ -268,11 +457,11 @@ export function Checkpoint({
                 }}
             >
                 <DialogContent className="pdf-dialog">
-                    <DialogTitle>Sample legal memo</DialogTitle>
+                    <DialogTitle>Your tribunal cue card</DialogTitle>
                     <DialogDescription>
-                        Demonstration document only. The backend will supply the actual PDF.
+                        Review this short reminder before downloading it for your consultation.
                     </DialogDescription>
-                    {preview && <iframe title="Sample legal memo PDF" src={preview} />}
+                    {preview && <iframe title="Tribunal cue card PDF" src={preview} />}
                 </DialogContent>
             </Dialog>
         </div>
