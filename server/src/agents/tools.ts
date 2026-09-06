@@ -22,6 +22,16 @@ import {
 
 const RevisionSchema = v.pipe(v.number(), v.integer(), v.minValue(1))
 const ToolIdSchema = v.pipe(v.string(), v.minLength(8), v.maxLength(128))
+const FactReviewSchema = v.variant("action", [
+    v.object({ action: v.literal("CONFIRM") }),
+    v.object({ action: v.literal("REJECT") }),
+    v.object({ action: v.literal("MARK_UNCERTAIN") }),
+    v.object({
+        action: v.literal("EDIT"),
+        statement: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(10_000)),
+        structuredValue: v.optional(v.nullable(v.record(v.string(), v.unknown())), null),
+    }),
+])
 
 function withAssessment<T>(
     caseId: string,
@@ -76,6 +86,33 @@ export function useSctTools(caseId: string): void {
     })
 
     useTool({
+        name: "confirm_case_category",
+        description:
+            "Record the user's explicit confirmation of the currently proposed category. Never call this merely because the category appears likely.",
+        input: v.object({
+            expectedRevision: RevisionSchema,
+            category: DisputeCategorySchema,
+        }),
+        async run({ data }) {
+            return caseStore.mutations.run(caseId, () => {
+                const current = caseStore.getCase(caseId)
+                if (current.category !== data.category) {
+                    throw new Error("The confirmed category does not match the current proposal.")
+                }
+                const value = caseStore.updateCase(
+                    caseId,
+                    {
+                        expectedRevision: data.expectedRevision,
+                        patch: { categoryUserConfirmed: true },
+                    },
+                    "USER",
+                )
+                return toolOutput(withAssessment(caseId, value))
+            })
+        },
+    })
+
+    useTool({
         name: "propose_fact",
         description:
             "Record a user assertion, document-derived candidate, or AI inference as a pending fact. This never confirms the fact.",
@@ -90,6 +127,26 @@ export function useSctTools(caseId: string): void {
         async run({ data }) {
             return caseStore.mutations.run(caseId, () => {
                 const value = caseStore.proposeFact(caseId, data, "AGENT")
+                return toolOutput(withAssessment(caseId, value))
+            })
+        },
+    })
+
+    useTool({
+        name: "review_fact",
+        description:
+            "Record the user's explicit confirmation, correction, rejection, or uncertainty decision for one pending fact. Never decide on the user's behalf.",
+        input: v.object({
+            expectedRevision: RevisionSchema,
+            factId: ToolIdSchema,
+            review: FactReviewSchema,
+        }),
+        async run({ data }) {
+            return caseStore.mutations.run(caseId, () => {
+                const value = caseStore.reviewFact(caseId, data.factId, {
+                    expectedRevision: data.expectedRevision,
+                    ...data.review,
+                })
                 return toolOutput(withAssessment(caseId, value))
             })
         },
@@ -270,6 +327,23 @@ export function useSctTools(caseId: string): void {
     })
 
     useTool({
+        name: "review_contradiction",
+        description:
+            "Record the user's explicit decision that a contradiction is resolved or remains accepted uncertainty. Never choose for the user.",
+        input: v.object({
+            expectedRevision: RevisionSchema,
+            contradictionId: ToolIdSchema,
+            status: v.picklist(["RESOLVED", "ACCEPTED_UNCERTAINTY"]),
+        }),
+        async run({ data }) {
+            return caseStore.mutations.run(caseId, () => {
+                const value = caseStore.resolveContradiction(caseId, data.contradictionId, data)
+                return toolOutput(withAssessment(caseId, value))
+            })
+        },
+    })
+
+    useTool({
         name: "list_open_questions",
         description: "List open, answered, and explicitly unresolved investigation questions.",
         run() {
@@ -356,6 +430,43 @@ export function useSctTools(caseId: string): void {
         run() {
             const assessment = refreshAssessment(caseStore, caseId)
             return toolOutput({ case: caseStore.getCase(caseId), assessment })
+        },
+    })
+
+    useTool({
+        name: "acknowledge_warning",
+        description:
+            "Record that the user explicitly chose to proceed with one current warning. Use the exact current fingerprint and never acknowledge it for the user.",
+        input: v.object({
+            expectedRevision: RevisionSchema,
+            warningId: ToolIdSchema,
+            fingerprint: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(128)),
+        }),
+        async run({ data }) {
+            return caseStore.mutations.run(caseId, () => {
+                const value = caseStore.acknowledgeWarning(caseId, data.warningId, data)
+                return toolOutput(withAssessment(caseId, value))
+            })
+        },
+    })
+
+    useTool({
+        name: "complete_final_review",
+        description:
+            "Mark the current revision reviewed only after presenting the complete case and receiving the user's explicit final confirmation.",
+        input: v.object({
+            expectedRevision: RevisionSchema,
+            confirmation: v.literal("I_HAVE_REVIEWED_THE_CASE"),
+        }),
+        async run({ data }) {
+            return caseStore.mutations.run(caseId, () => {
+                const value = caseStore.updateCase(
+                    caseId,
+                    { expectedRevision: data.expectedRevision, patch: { userReviewed: true } },
+                    "USER",
+                )
+                return toolOutput(withAssessment(caseId, value))
+            })
         },
     })
 

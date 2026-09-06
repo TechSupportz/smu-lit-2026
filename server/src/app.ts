@@ -17,6 +17,7 @@ import {
     UpsertRemedyInputSchema,
 } from "./domain/schemas.js"
 import { AppError, ProcessingError, RevisionConflictError } from "./errors.js"
+import { handleMcpRequest } from "./mcp/http.js"
 import { refreshAssessment } from "./services/assessment.js"
 import { reconcileCase } from "./services/reconciliation.js"
 import {
@@ -118,11 +119,14 @@ app.use("*", async (context, next) => {
     if (origin && config.corsOrigins.includes(origin)) {
         context.header("Access-Control-Allow-Origin", origin)
         context.header("Vary", "Origin")
-        context.header("Access-Control-Allow-Headers", "Content-Type, Idempotency-Key, If-Match")
+        context.header(
+            "Access-Control-Allow-Headers",
+            "Authorization, Content-Type, Idempotency-Key, If-Match, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id",
+        )
         context.header("Access-Control-Allow-Methods", "GET, HEAD, POST, PATCH, DELETE, OPTIONS")
         context.header(
             "Access-Control-Expose-Headers",
-            "Location, Stream-Next-Offset, Stream-Up-To-Date",
+            "Location, Mcp-Protocol-Version, Mcp-Session-Id, Stream-Next-Offset, Stream-Up-To-Date",
         )
     }
     context.header("Cache-Control", "no-store")
@@ -175,6 +179,25 @@ app.onError((error, context) => {
 })
 
 app.get("/health", context => context.json({ status: "ok" }))
+
+app.all("/mcp", context =>
+    handleMcpRequest(
+        context,
+        {
+            store: caseStore,
+            pdfService,
+            async runAgentTurn({ caseId, message, idempotencyKey }) {
+                const agent = init(SCTPreFilingAgent, { id: caseId })
+                const receipt = await agent.dispatch({
+                    message: { kind: "user", body: message },
+                    ...(idempotencyKey ? { idempotencyKey } : {}),
+                })
+                return agent.read(receipt)
+            },
+        },
+        config,
+    ),
+)
 
 app.get("/cases", context => context.json({ cases: caseStore.listCases() }))
 
@@ -426,18 +449,11 @@ app.post("/cases/:caseId/snapshots/:snapshotId/pdf", async context => {
 })
 
 app.get("/cases/:caseId/snapshots/:snapshotId/pdf", async context => {
-    const snapshot = caseStore.getSnapshot(
+    const { snapshot, bytes } = await pdfService.readCompiled(
         context.req.param("caseId"),
         context.req.param("snapshotId"),
     )
-    if (!snapshot.pdfPath || !snapshot.pdfSha256)
-        throw new ProcessingError("The snapshot PDF has not been compiled.")
-    const bytes = await readFile(safeSnapshotPath(snapshot.pdfPath))
-    const digest = createHash("sha256").update(bytes).digest("hex")
-    if (digest !== snapshot.pdfSha256 || bytes.subarray(0, 5).toString() !== "%PDF-") {
-        throw new ProcessingError("Snapshot PDF failed its integrity check.")
-    }
-    return context.body(bytes, 200, {
+    return context.body(Uint8Array.from(bytes), 200, {
         "Content-Type": "application/pdf",
         "Content-Disposition": contentDisposition(`${snapshot.basename}.pdf`),
     })

@@ -40,6 +40,8 @@ export function testConfig(dir: string, overrides: Partial<AppConfig> = {}): App
         host: "127.0.0.1",
         port: 3000,
         corsOrigins: ["http://localhost:5173"],
+        mcpEnabled: false,
+        mcpAccessToken: "",
         dataDir: dir,
         flueDbPath: join(dir, "flue.db"),
         caseDbPath: join(dir, "cases.db"),

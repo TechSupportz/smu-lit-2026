@@ -10,6 +10,14 @@ const integerFromString = (fallback: number) =>
         v.minValue(1),
     )
 
+const booleanFromString = (fallback: boolean) =>
+    v.pipe(
+        v.optional(v.string(), String(fallback)),
+        v.transform(value => value.toLowerCase()),
+        v.picklist(["true", "false"]),
+        v.transform(value => value === "true"),
+    )
+
 const ConfigSchema = v.object({
     OPENCODE_GO_KEY: v.optional(v.string(), ""),
     OPENCODE_GO_BASE_URL: v.optional(v.pipe(v.string(), v.url()), "https://openrouter.ai/api/v1"),
@@ -20,6 +28,8 @@ const ConfigSchema = v.object({
     HOST: v.optional(v.string(), "127.0.0.1"),
     PORT: integerFromString(3000),
     CORS_ORIGINS: v.optional(v.string(), "http://localhost:5173,http://127.0.0.1:5173"),
+    MCP_ENABLED: booleanFromString(false),
+    MCP_ACCESS_TOKEN: v.optional(v.union([v.literal(""), v.pipe(v.string(), v.minLength(32))]), ""),
     DATA_DIR: v.optional(v.string(), "./data"),
     FLUE_DB_PATH: v.optional(v.string(), "./data/flue.db"),
     CASE_DB_PATH: v.optional(v.string(), "./data/cases.db"),
@@ -44,6 +54,8 @@ export interface AppConfig {
     host: string
     port: number
     corsOrigins: string[]
+    mcpEnabled: boolean
+    mcpAccessToken: string
     dataDir: string
     flueDbPath: string
     caseDbPath: string
@@ -73,6 +85,13 @@ export function loadConfig(
     }
 
     const source = parsed.output
+    const loopbackHosts = new Set(["127.0.0.1", "::1", "localhost"])
+    if (source.MCP_ENABLED && !source.MCP_ACCESS_TOKEN && !loopbackHosts.has(source.HOST)) {
+        throw new Error(
+            "Invalid server configuration: MCP_ACCESS_TOKEN is required when MCP is enabled on a non-loopback host.",
+        )
+    }
+
     return {
         openCodeGoKey: source.OPENCODE_GO_KEY,
         openCodeGoBaseUrl: source.OPENCODE_GO_BASE_URL.replace(/\/$/, ""),
@@ -85,6 +104,8 @@ export function loadConfig(
         corsOrigins: source.CORS_ORIGINS.split(",")
             .map(origin => origin.trim())
             .filter(Boolean),
+        mcpEnabled: source.MCP_ENABLED,
+        mcpAccessToken: source.MCP_ACCESS_TOKEN,
         dataDir: absolute(source.DATA_DIR, root),
         flueDbPath: absolute(source.FLUE_DB_PATH, root),
         caseDbPath: absolute(source.CASE_DB_PATH, root),
