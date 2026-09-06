@@ -1,0 +1,18 @@
+{
+  "name": "andrea-sct-pitch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build",
+    "export": "slidev export --format pdf --output Andrea-SCT-pitch.pdf"
+  },
+  "devDependencies": {
+    "@fontsource/dm-sans": "latest",
+    "@fontsource/dm-serif-display": "latest",
+    "@slidev/cli": "latest",
+    "@slidev/theme-default": "latest",
+    "playwright-chromium": "latest",
+    "vue": "latest"
+  }
+}
