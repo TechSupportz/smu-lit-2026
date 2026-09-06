@@ -7,6 +7,7 @@ import {
     type EligibilityCheck,
     type CaseDetails,
     type CaseFile,
+    type CasePrepBundle,
 } from "./types"
 import {
     frontendCategory,
@@ -36,6 +37,7 @@ const defaults = () => ({
     backendCreateKey: makeKey(),
     backendRevision: null as number | null,
     savedAt: null as string | null,
+    casePrep: null as CasePrepBundle | null,
 })
 type CaseState = ReturnType<typeof defaults> & {
     resume: () => void
@@ -45,6 +47,7 @@ type CaseState = ReturnType<typeof defaults> & {
     setChecks: (checks: EligibilityCheck[]) => void
     setDetails: (details: Partial<CaseDetails>) => void
     setBackendCase: (id: string, revision: number) => void
+    setCasePrep: (bundle: CasePrepBundle | null) => void
     syncBackendCase: (state: BackendCaseState) => void
     addFile: (file: CaseFile) => void
     updateFile: (id: string, patch: Partial<CaseFile>) => void
@@ -62,6 +65,7 @@ export const useCase = create<CaseState>()(
             resume: () => {
                 const state = get()
                 get().go(
+                    state.casePrep !== null ||
                     state.files.some(f => f.name.includes("memo") && f.status === "ready")
                         ? "complete"
                         : ["filed", "served", "declaration"].every(id =>
@@ -104,6 +108,7 @@ export const useCase = create<CaseState>()(
                     checklist: [],
                     grillStarted: false,
                     grillComplete: false,
+                    casePrep: null,
                     ...stamp(),
                 })),
             setChecks: checks => set({ checks, ...stamp() }),
@@ -112,10 +117,12 @@ export const useCase = create<CaseState>()(
                     details: { ...s.details, ...details },
                     grillStarted: false,
                     grillComplete: false,
+                    casePrep: null,
                     ...stamp(),
                 })),
             setBackendCase: (backendCaseId, backendRevision) =>
                 set({ backendCaseId, backendRevision, ...stamp() }),
+            setCasePrep: casePrep => set({ casePrep, ...stamp() }),
             syncBackendCase: state =>
                 set(current => {
                     if (
@@ -215,6 +222,11 @@ export const useCase = create<CaseState>()(
                         grillComplete:
                             state.questions.length > 0 &&
                             state.questions.every(question => question.status !== "OPEN"),
+                        casePrep:
+                            current.backendRevision !== null &&
+                            current.backendRevision !== state.case.revision
+                                ? null
+                                : current.casePrep,
                         backendCaseId: state.case.id,
                         backendRevision: state.case.revision,
                         ...stamp(),

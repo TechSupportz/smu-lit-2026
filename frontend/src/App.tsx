@@ -16,12 +16,22 @@ import { Chat } from "./components/Chat"
 import { Checkpoint } from "./components/Checkpoint"
 import { ProgressPanel } from "./components/ProgressPanel"
 import { useCase } from "./lib/store"
-import { createSamplePdf } from "./lib/demo"
-import { createBackendPdf, deleteBackendCase, getBackendCase } from "./lib/backend"
+import { createBackendPdf, deleteBackendCase, generateCasePrep, getBackendCase } from "./lib/backend"
 import { removeBlob, saveBlob } from "./lib/storage"
 import type { Stage } from "./lib/types"
 export default function App() {
-    const { stage, go, started, files, addFile, updateFile, reset, backendCaseId, syncBackendCase } =
+    const {
+        stage,
+        go,
+        started,
+        files,
+        addFile,
+        updateFile,
+        reset,
+        backendCaseId,
+        syncBackendCase,
+        setCasePrep,
+    } =
         useCase()
     const [panelOpen, setPanelOpen] = useState(() => window.innerWidth > 900)
     const [correctionKey, setCorrectionKey] = useState(0)
@@ -46,27 +56,36 @@ export default function App() {
                 ),
             )
     }, [backendCaseId, syncBackendCase])
-    async function generate(kind: "filing" | "memo") {
+    async function generate(kind: "filing" | "case-prep") {
+        if (kind === "case-prep") {
+            if (!backendCaseId)
+                throw new Error("Run the eligibility check before preparing your case.")
+            try {
+                const bundle = await generateCasePrep(backendCaseId)
+                setCasePrep(bundle)
+                return true
+            } catch (error) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : "Could not prepare your court-day case pack. Please try again."
+                setError(message)
+                return false
+            }
+        }
         const id = crypto.randomUUID()
         addFile({
             id,
-            name: kind === "memo" ? "sample-legal-memo.pdf" : "pre-filing-summary.pdf",
+            name: "pre-filing-summary.pdf",
             size: 0,
             kind: "generated",
             status: "generating",
             backendStored: kind === "filing",
         })
         try {
-            if (kind === "filing" && !backendCaseId)
+            if (!backendCaseId)
                 throw new Error("Run the eligibility check before preparing the filing summary.")
-            const result =
-                kind === "filing"
-                    ? await createBackendPdf(backendCaseId!)
-                    : {
-                          blob: await createSamplePdf(kind),
-                          filename: "sample-legal-memo.pdf",
-                          state: null,
-                      }
+            const result = await createBackendPdf(backendCaseId)
             await saveBlob(id, result.blob)
             updateFile(id, { name: result.filename, size: result.blob.size, status: "ready" })
             if (result.state) syncBackendCase(result.state)

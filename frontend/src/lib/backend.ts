@@ -3,7 +3,11 @@ import {
     type CaseDetails,
     type EligibilityAnswers,
     type EligibilityCheck,
+    type CasePrepArtifact,
+    type CasePrepBundle,
 } from "./types"
+
+export type { CasePrepArtifact, CasePrepBundle }
 
 type DisputeCategory =
     | "SALE_OF_GOODS"
@@ -92,6 +96,48 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         )
     }
     return response.json() as Promise<T>
+}
+
+function backendUrl(pathOrUrl: string): string {
+    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl
+    if (pathOrUrl === backendBaseUrl || pathOrUrl.startsWith(`${backendBaseUrl}/`)) {
+        return pathOrUrl
+    }
+    if (/^https?:\/\//i.test(backendBaseUrl)) {
+        const configured = new URL(backendBaseUrl)
+        const basePath = configured.pathname.replace(/\/$/, "")
+        if (basePath && pathOrUrl.startsWith(`${basePath}/`)) {
+            return `${configured.origin}${pathOrUrl}`
+        }
+    }
+    return `${backendBaseUrl}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`
+}
+
+async function requestBlob(pathOrUrl: string): Promise<Blob> {
+    const response = await fetch(backendUrl(pathOrUrl))
+    if (!response.ok) {
+        let body: ErrorEnvelope = {}
+        try {
+            body = (await response.json()) as ErrorEnvelope
+        } catch {
+            /* non-JSON upstream error */
+        }
+        throw new BackendError(
+            response.status,
+            body.error?.code ?? "DOWNLOAD_FAILED",
+            body.error?.message ?? `Backend file download failed (${response.status}).`,
+        )
+    }
+    return response.blob()
+}
+
+async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = filename
+    anchor.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 const json = (method: string, body: unknown): RequestInit => ({
@@ -380,6 +426,81 @@ export async function createBackendPdf(
     }
 }
 
+/** Generate the court-day cue card and the combined evidence PDF stack. */
+export async function generateCasePrep(caseId: string): Promise<CasePrepBundle> {
+    return request(`/cases/${encodeURIComponent(caseId)}/case-prep`, { method: "POST" })
+}
+
+/** Return the latest generated case-prep artifacts, if the backend has one. */
+export async function getCasePrep(caseId: string): Promise<CasePrepBundle> {
+    return request(`/cases/${encodeURIComponent(caseId)}/case-prep`)
+}
+
+export async function getCasePrepCueCard(caseId: string): Promise<Blob> {
+    return requestBlob(`/cases/${encodeURIComponent(caseId)}/case-prep/cue-card`)
+}
+
+export async function getCasePrepStack(caseId: string): Promise<Blob> {
+    return requestBlob(`/cases/${encodeURIComponent(caseId)}/case-prep/stack`)
+}
+
+export async function downloadCasePrepCueCard(caseId: string, filename: string): Promise<void> {
+    await downloadBlob(await getCasePrepCueCard(caseId), filename)
+}
+
+export async function downloadCasePrepStack(caseId: string, filename: string): Promise<void> {
+    await downloadBlob(await getCasePrepStack(caseId), filename)
+}
+
+export async function getBackendSnapshotPdf(caseId: string, snapshotId: string): Promise<Blob> {
+    return requestBlob(
+        `/cases/${encodeURIComponent(caseId)}/snapshots/${encodeURIComponent(snapshotId)}/pdf`,
+    )
+}
+
+export async function getBackendEvidenceContent(
+    caseId: string,
+    evidenceId: string,
+): Promise<Blob> {
+    return requestBlob(
+        `/cases/${encodeURIComponent(caseId)}/evidence/${encodeURIComponent(evidenceId)}/content`,
+    )
+}
+
+export async function downloadBackendSnapshotPdf(
+    caseId: string,
+    snapshotId: string,
+    filename: string,
+): Promise<void> {
+    await downloadBlob(await getBackendSnapshotPdf(caseId, snapshotId), filename)
+}
+
+export async function downloadBackendEvidenceContent(
+    caseId: string,
+    evidenceId: string,
+    filename: string,
+): Promise<void> {
+    await downloadBlob(await getBackendEvidenceContent(caseId, evidenceId), filename)
+}
+
+export async function downloadCasePrepArtifact(
+    artifact: CasePrepArtifact,
+): Promise<void> {
+    await downloadBlob(await requestBlob(artifact.url), artifact.filename)
+}
+
+export async function downloadCasePrepPrefiling(
+    prefiling: NonNullable<CasePrepBundle["prefiling"]>,
+): Promise<void> {
+    await downloadBlob(await requestBlob(prefiling.url), prefiling.filename)
+}
+
+export async function downloadCasePrepEvidence(
+    evidence: CasePrepBundle["evidence"][number],
+): Promise<void> {
+    await downloadBlob(await requestBlob(evidence.url), evidence.originalFilename)
+}
+
 export async function deleteBackendCase(caseId: string): Promise<void> {
     let state: BackendCaseState
     try {
@@ -401,13 +522,5 @@ export async function downloadBackendFile(
         source.type === "evidence"
             ? `/cases/${encodeURIComponent(source.caseId)}/evidence/${encodeURIComponent(source.recordId)}/content`
             : `/cases/${encodeURIComponent(source.caseId)}/snapshots/${encodeURIComponent(source.recordId)}/pdf`
-    const response = await fetch(`${backendBaseUrl}${path}`)
-    if (!response.ok) throw new Error(`The backend file download failed (${response.status}).`)
-    const blob = await response.blob()
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement("a")
-    anchor.href = url
-    anchor.download = filename
-    anchor.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    await downloadBlob(await requestBlob(path), filename)
 }

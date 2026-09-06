@@ -84,7 +84,7 @@ export function Chat({
     stage: ChatStage
     correctionKey: number
     onError: (s: string) => void
-    onGenerate: (kind: "filing" | "memo") => Promise<boolean>
+    onGenerate: (kind: "filing" | "case-prep") => Promise<boolean>
 }) {
     const {
         checks,
@@ -240,7 +240,7 @@ export function Chat({
         if (busy || isLoading || uploading) return
         setBusy(true)
         try {
-            const success = await onGenerate(isPrep ? "memo" : "filing")
+            const success = await onGenerate(isPrep ? "case-prep" : "filing")
             if (success) go(isPrep ? "complete" : "checkpoint")
         } catch (error) {
             onError(error instanceof Error ? error.message : "The case could not be prepared.")
@@ -272,7 +272,7 @@ export function Chat({
             </h1>
             <p className="stage-description">
                 {isPrep
-                    ? "The current backend stops at pre-filing preparation. This stage remains a local preview."
+                    ? "Turn your case details and supporting documents into a practical pack for your tribunal consultation."
                     : "We’ll gather the details, one piece at a time. No legal language needed."}
             </p>
             <div className="conversation" aria-label="Conversation">
@@ -288,7 +288,7 @@ export function Chat({
                                 <strong>ClaimGuide</strong>
                                 <p>
                                     {isPrep
-                                        ? "Post-filing case preparation is not connected yet. You can still produce the clearly marked sample memo below."
+                                        ? "When you’re ready, we’ll create a cue card for the consultation and one PDF stack containing your pre-filing summary and evidence."
                                         : "Start with who you’re claiming against and what happened. You can add receipts, messages, or other supporting documents along the way."}
                                 </p>
                             </div>
@@ -369,7 +369,7 @@ export function Chat({
                             aria-label="Message ClaimGuide"
                             placeholder={
                                 isPrep
-                                    ? "Post-filing assistant not connected"
+                                    ? "Case preparation is ready when you are"
                                     : "Tell us a little more, or ask a question…"
                             }
                             disabled={isPrep || !backendCaseId}
@@ -401,7 +401,7 @@ export function Chat({
                                 )}
                                 Attach a file
                             </Button>
-                            <span>PDF, JPG, PNG · up to 5 MB</span>
+                            <span>PDF, images, text, Word and Office · up to 10 MB</span>
                             {isLoading ? (
                                 <Button
                                     type="button"
@@ -438,13 +438,13 @@ export function Chat({
                             tabIndex={-1}
                             type="file"
                             multiple
-                            accept="application/pdf,image/jpeg,image/png"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.doc,.docx,.rtf,.odt,.ppt,.pptx,.xls,.xlsx"
                             onChange={event => void upload(event.target.files)}
                         />
                     </form>
                     <p className="composer-note">
                         {isPrep
-                            ? "This post-filing stage is not sent to the pre-filing backend."
+                            ? "Your case-prep pack is generated from the details and evidence in this case."
                             : "Messages and attachments are sent to the configured ClaimGuide backend."}
                     </p>
                 </div>
@@ -454,12 +454,12 @@ export function Chat({
                     <div>
                         <strong>
                             {isPrep
-                                ? "Ready to see the preview document?"
+                                ? "Ready to prepare your court-day pack?"
                                 : "Happy with your starting details?"}
                         </strong>
                         <p>
                             {isPrep
-                                ? "Create a clearly marked local sample PDF."
+                                ? "Create a cue card and a single PDF containing the documents you’ve gathered."
                                 : "Create a backend-generated pre-filing summary, then review the external filing checklist."}
                         </p>
                     </div>
@@ -483,7 +483,7 @@ export function Chat({
                             </>
                         ) : (
                             <>
-                                {isPrep ? "Prepare sample PDF" : "Prepare filing summary"}
+                                {isPrep ? "Prepare my case pack" : "Prepare filing summary"}
                                 <ArrowRight size={16} />
                             </>
                         )}
