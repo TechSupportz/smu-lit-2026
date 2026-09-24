@@ -1,10 +1,10 @@
-# Andrea
+# Andrea · SMU LIT Legal-Tech Hackathon 2026
 
 **Small claims. Clearer next steps.**
 
 Andrea is an AI harness that helps self-represented persons (SRPs) prepare claims for Singapore's Small Claims Tribunals (SCT). It does not answer "Do I have a case?" from a few assumed facts. It walks the user through a structured process instead: what happened, whether the claim is eligible, which facts matter, what evidence supports them, and what the other side might say.
 
-Built by Team Freedom for SMU LIT Hackathon 2026 · [Devpost](https://devpost.com/software/project-andrea) · [Pitch deck (PDF)](docs/Andrea-SCT-pitch.pdf)
+Built by Team Freedom for the SMU LIT Legal-Tech Hackathon 2026 · [Devpost](https://devpost.com/software/project-andrea) · [Pitch deck (PDF)](docs/Andrea-SCT-pitch.pdf)
 
 ![Andrea landing page](slides/screenshots/file-d7b3c4469448a5f6ffb6a5ac0b38b15b.png)
 
@@ -60,15 +60,40 @@ Setup, the prefilled demo walkthrough and the MCP endpoint are covered in [docs/
 | `docs/` | Backend contract, cue-card template, design decisions, user scenario |
 | `demo/` | Demo evidence and (ignored) generated output |
 
-## Backend scope
+## Under the hood
 
-The backend handles:
+```mermaid
+flowchart LR
+    Web["React web app<br/>(@flue/react)"] -->|turns + stream| API
+    LLM["ChatGPT / other LLM clients"] -->|MCP| API
+    API["Hono API"] --> Agent["Flue agent harness<br/>sct-prefiling-agent"]
+    Agent -->|case tools| DB[("SQLite<br/>case state")]
+    Agent -->|allowlisted fetch| Gov["judiciary.gov.sg<br/>sso.agc.gov.sg"]
+    Agent -->|extract + verify| Ev["Evidence store<br/>(immutable originals)"]
+    Agent -->|compile| PDF["Typst PDFs<br/>summary · cue cards · stack"]
+```
 
-- authoritative eligibility checks and revisioned case state;
-- durable agent conversation history;
-- structured respondent, factual-summary and remedy updates;
-- immutable evidence uploads;
-- JSON snapshots and Typst-generated PDFs; and
-- full case deletion from the browser's "Clear my case" action.
+**The Flue harness.** The backend runs a single durable [Flue](https://www.npmjs.com/package/@flue/runtime) agent, `sct-prefiling-agent` ([server/src/agents](server/src/agents)). It runs an interview protocol that turns a user's account into labelled facts, using follow-up questions to fill gaps. Flue handles streaming, retries, durable conversation history and context compaction. The model is reached through OpenRouter. A scripted mock provider lets the whole flow run offline.
+
+**The model never holds the case.** SQLite is the source of truth, and the agent can only change it through about 25 typed tools ([tools.ts](server/src/agents/tools.ts)), such as `propose_fact`, `verify_fact_against_files`, `add_contradiction`, `add_open_question` and `retrieve_official_guidance`. That is how the G·P·T principles are enforced:
+
+- A user's claim, what a document shows, what the AI inferred and what the user reviewed are tracked separately. AI inferences stay pending until the user confirms them.
+- Facts are checked against uploaded files by filename and page, message or image location. When sources conflict, the agent records a contradiction and asks the user instead of picking one.
+- Procedural answers come only from an allowlist of official sources. If retrieval fails, the result is marked `UNVERIFIED`.
+- Every edit is revisioned, and stale writes are rejected. Uploaded evidence is never overwritten, and uploaded content is treated as evidence, never as instructions to the agent.
+
+**Documents are generated, not written.** The pre-filing summary, cue cards and tribunal stack are Typst PDFs compiled by harness tools from a snapshot tied to the current revision. The stack combines an index, the cue cards, the summary and every piece of evidence, with images, text and Office files converted to A4 pages. The agent can't claim a file exists unless the tool call that made it succeeded.
+
+**MCP.** The same harness is exposed as a single conversational `talk_to_claim_guide` MCP tool ([server/src/mcp](server/src/mcp)). ChatGPT and other clients get the same guided interview and the verified final PDF.
+
+**Stack:** React + Vite + Tailwind (frontend) · Hono + Flue + SQLite + Typst on Node 22 (backend) · Slidev (deck).
+
+## Team Freedom
+
+- [Keith Chew](https://www.linkedin.com/in/keithchew16/)
+- [Man Ning Teo](https://www.linkedin.com/in/man-ning-teo-0391b22b5/)
+- [Nitish](https://www.linkedin.com/in/tnitish654/)
+- [Randall Yap](https://www.linkedin.com/in/randall-yap-a255a9228/)
+- [Yannaputt Tim](https://www.linkedin.com/in/yannaputt-tim/)
 
 > Andrea is a hackathon prototype. It supports preparation only and is not legal advice or an official court service.
