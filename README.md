@@ -40,6 +40,11 @@ The shift is from *"Tell AI my problem"* to *"Help me identify my relevant facts
 
 ![Court-day pack](docs/images/court-day-pack.webp)
 
+**Sample outputs** from the fictional prefilled salon-package case:
+[pre-filing summary](docs/samples/prefiling-summary.pdf) (4 pp) ·
+[cue card](docs/samples/cue-card.pdf) (1 p) ·
+[tribunal pack](docs/samples/tribunal-pack.pdf) (8 pp, with index and evidence)
+
 Andrea doesn't decide who is right, guarantee an outcome or replace the SCT. It helps the user present their case clearly, objectively and confidently.
 
 ### Beyond the website
