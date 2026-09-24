@@ -4,7 +4,7 @@
 
 Andrea is an AI harness that helps self-represented persons (SRPs) prepare claims for Singapore's Small Claims Tribunals (SCT). It does not answer "Do I have a case?" from a few assumed facts. It walks the user through a structured process instead: what happened, whether the claim is eligible, which facts matter, what evidence supports them, and what the other side might say.
 
-Built by Team Freedom for SMU LIT Hackathon 2026 · [Devpost](https://devpost.com/software/project-andrea) · [Pitch deck](slides/slides.md)
+Built by Team Freedom for SMU LIT Hackathon 2026 · [Devpost](https://devpost.com/software/project-andrea) · [Pitch deck (PDF)](docs/Andrea-SCT-pitch.pdf)
 
 ![Andrea landing page](slides/screenshots/file-d7b3c4469448a5f6ffb6a5ac0b38b15b.png)
 
@@ -46,6 +46,10 @@ Andrea doesn't decide who is right, guarantee an outcome or replace the SCT. It 
 
 Not everyone will use Andrea's site, so the agent harness runs on its own. An opt-in MCP endpoint exposes it to ChatGPT and other LLM clients, which get the same guided workflow and verified PDFs. We also propose that SG Courts publish an `llms.txt`, so any assistant can find the official SCT guidance without being pointed at it.
 
+## Running it
+
+Setup, the prefilled demo walkthrough and the MCP endpoint are covered in [docs/setup.md](docs/setup.md).
+
 ## Repository layout
 
 | Path | Contents |
@@ -67,105 +71,4 @@ The backend handles:
 - JSON snapshots and Typst-generated PDFs; and
 - full case deletion from the browser's "Clear my case" action.
 
-## Prerequisites
-
-- Node.js 22.19 or newer (an even-numbered LTS release is recommended)
-- pnpm
-- Typst and Poppler's `pdfinfo` for backend PDF generation
-- Backend provider keys only if live agent turns or evidence extraction are required
-
-## Run locally
-
-Copy the backend environment sample and populate the provider keys you intend to use:
-
-```sh
-cp server/.env.sample server/.env
-```
-
-Install and start the backend:
-
-```sh
-cd server
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-In a second terminal, install and start the frontend:
-
-```sh
-cd frontend
-pnpm install
-pnpm dev
-```
-
-Open `http://127.0.0.1:5173`. Vite proxies `/api` to `http://127.0.0.1:3000`, so local development needs no additional frontend configuration.
-
-### Prefilled haircut walkthrough
-
-Prefilled mode seeds a fictional salon-package case while retaining the configured live Flue agent. Start the backend with:
-
-```sh
-cd server
-pnpm dev:prefilled
-```
-
-Start the frontend with the matching opt-in and choose **Load prefilled haircut case** in the eligibility card:
-
-```sh
-cd frontend
-pnpm dev:prefilled
-```
-
-1. Review the pre-filled eligibility and case details, and select **Prepare filing summary**.
-2. On the filing checklist, tick the three external-demo steps and continue.
-3. Select **Prepare my case pack** to generate the cue card and combined evidence stack.
-
-In a prefilled frontend, the browser console can perform the same backend-first seed and localStorage projection from any screen:
-
-```js
-await window.__andreaPrefilled.loadHaircutPackage()
-```
-
-The resolved object includes the backend case ID and revision. Both PDF actions are then sent through the connected Flue harness. The harness creates a revision-bound snapshot and invokes the real PDF compiler tools; the frontend does not substitute a bundled or premade PDF.
-
-The scenario uses fictional parties, addresses, and two visibly synthetic evidence images committed under `server/src/prefilled-scenarios/assets/`. The prefilled route returns 404 unless `PREFILLED=true`; normal `pnpm dev` exposes no prefilled-case loader.
-
-To seed the same backend state without opening the frontend:
-
-```sh
-cd server
-pnpm prefilled:seed
-```
-
-The command writes only a state manifest to the ignored `demo/output/` directory. It deliberately does not generate PDFs. Generate the filing summary, cue card and tribunal pack from the frontend so the requests run through Flue. Generated PDFs and QA output remain ignored under `demo/`.
-
-For deterministic UI/harness testing without a live model, `pnpm dev:demo` remains available on both sides. This separately enables `MOCK_DATA_MODE=true`; it is not the normal prefilled walkthrough.
-
-For a separately deployed backend, set `VITE_API_BASE_URL` when building the frontend. Set the backend's `CORS_ORIGINS` to the frontend origin.
-
-When a Cloudflare Quick Tunnel points at either development server, add that tunnel's exact generated hostname to `VITE_ALLOWED_HOSTS` and restart the affected server. For example:
-
-```sh
-VITE_ALLOWED_HOSTS=computational-grill-freeze-aka.trycloudflare.com pnpm dev
-```
-
-Set this in `server/.env` for a backend/MCP tunnel or `frontend/.env` for a frontend tunnel. Do not include `https://` or a path. Quick Tunnel hostnames change when a new tunnel is created, so update the value rather than hard-coding a generated hostname.
-
-The backend also includes an opt-in streamable-HTTP MCP endpoint for ordinary LLM clients. It exposes one conversational `talk_to_claim_guide` tool backed by the same Flue agent harness as the frontend; ClaimGuide owns the structured workflow and returns the verified final PDF as an MCP resource. See [server/README.md](server/README.md#mcp-integration) for the session contract, private bearer-token mode, and the additional OAuth/user-isolation work required before publishing it as a public ChatGPT plugin.
-
-## Verify
-
-```sh
-cd server
-pnpm check
-
-cd ../frontend
-pnpm build
-pnpm test
-```
-
-## Data and safety boundary
-
-The backend is unauthenticated and has no user isolation. Bind it to localhost or a trusted internal network only. Eligibility and generated summaries support preparation; they are not legal advice, official court forms, court acceptance, or evidence that anything was filed.
-
-Backend case/conversation data lives under `server/data/`. The frontend keeps navigation state and local downloadable file copies in browser storage. Clearing a connected case deletes the backend case and those local copies.
+> Andrea is a hackathon prototype. It supports preparation only and is not legal advice or an official court service.
