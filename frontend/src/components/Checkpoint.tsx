@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useCase } from "@/lib/store"
 import { checklistItems } from "@/lib/types"
+import { isPrefilingDocument } from "@/lib/case-files"
 import { Button } from "./ui/button"
 import { Checkbox } from "./ui/checkbox"
 import { Input } from "./ui/input"
@@ -184,9 +185,8 @@ export function Checkpoint({
     const [preview, setPreview] = useState<string | null>(null)
     const [casePrep, setLocalCasePrep] = useState<CasePrepBundle | null>(savedCasePrep)
     const [prepLoading, setPrepLoading] = useState(final && !savedCasePrep && Boolean(backendCaseId))
-    const generated = files.filter(f => f.kind === "generated")
     const count = checklistItems.filter(item => checklist.includes(item.id)).length
-    const visibleFiles = generated.filter(f => f.name.includes("filing"))
+    const visibleFiles = files.filter(isPrefilingDocument)
     useEffect(() => {
         setLocalCasePrep(savedCasePrep)
     }, [savedCasePrep])
